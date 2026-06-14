@@ -69,6 +69,37 @@ This starts:
 
 ---
 
+## 🌐 Deploying to the Web (Free & Public URL)
+
+To share this app via a web link without forcing users to install anything, you can deploy both parts of the app for free:
+
+### 1. Frontend Deployment (Next.js on Vercel)
+**Vercel** is the easiest way to host Next.js apps.
+1. Sign up for a free account at **[vercel.com](https://vercel.com/)** using your GitHub account.
+2. Click **Add New** → **Project**.
+3. Import the `docmaster-pro` repository.
+4. In the configuration settings:
+   - **Framework Preset**: Next.js
+   - **Root Directory**: Click *Edit* and select **`frontend`**.
+5. Click **Deploy**. Vercel will build your site and give you a public URL (e.g., `https://docmaster-pro.vercel.app`).
+
+### 2. Backend Deployment (Express.js on Render or Railway)
+Since the app performs real PDF operations (like merging/compressing), the backend Express server needs to be hosted as a Web Service.
+* **Option A: Render (Free)**:
+  1. Go to **[render.com](https://render.com/)** and log in with GitHub.
+  2. Click **New** → **Web Service**.
+  3. Connect the `docmaster-pro` repository.
+  4. Fill in:
+     - **Name**: `docmaster-pro-api`
+     - **Build Command**: `npm install && npm run build` (or `npm install` inside the backend directory)
+     - **Start Command**: `node dist/server.js` (or configure to build TS files and start)
+     - **Root Directory**: `backend`
+  5. Click **Create Web Service**. Render will host the API publicly (e.g., `https://docmaster-pro-api.onrender.com`).
+* **Connecting Frontend & Backend**:
+  Once your backend is live, update the API URL variable in your frontend Vercel project configuration to point to the new Render URL instead of `localhost:5000`.
+
+---
+
 ## 🛠️ Tech Stack
 
 | Layer | Tech |
