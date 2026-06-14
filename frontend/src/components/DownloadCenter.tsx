@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { Download, Trash2, Clock, FileText, CheckCircle2, ChevronRight, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { API_URL } from '@/lib/config';
 
 export interface ProcessedFile {
   id: string; // uploadId
@@ -71,7 +72,7 @@ export default function DownloadCenter() {
   const deleteFile = async (file: ProcessedFile) => {
     // Call backend delete route
     try {
-      const url = `http://localhost:5000${file.downloadUrl.replace('/download/', '/delete/')}`;
+      const url = `${API_URL}${file.downloadUrl.replace('/download/', '/delete/')}`;
       await fetch(url, { method: 'DELETE' });
     } catch (err) {
       console.error('Failed to request backend deletion:', err);
@@ -190,7 +191,7 @@ export default function DownloadCenter() {
 
                   {/* Download Action */}
                   <a
-                    href={`http://localhost:5000${file.downloadUrl}`}
+                    href={`${API_URL}${file.downloadUrl}`}
                     className="w-full py-1.5 rounded-lg bg-accent-primary hover:bg-accent-primary/90 text-white text-[11px] font-bold text-center flex items-center justify-center gap-1.5 mt-1 transition-colors"
                   >
                     <Download className="w-3.5 h-3.5" /> Download PDF

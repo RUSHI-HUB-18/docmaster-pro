@@ -8,6 +8,7 @@ import {
   Combine, Scissors, Minimize, RotateCw
 } from 'lucide-react';
 import type { ProcessedFile } from '@/components/DownloadCenter';
+import { API_URL } from '@/lib/config';
 
 const FAVORITE_TOOLS = [
   { name: 'Merge PDF', path: '/merge', icon: Combine, color: 'from-blue-500 to-indigo-600' },
@@ -167,7 +168,7 @@ export default function DashboardPage() {
                             </div>
                           </div>
                           <a
-                            href={`http://localhost:5000${file.downloadUrl}`}
+                            href={`${API_URL}${file.downloadUrl}`}
                             className="w-8 h-8 rounded-lg bg-accent-primary/10 hover:bg-accent-primary/20 flex items-center justify-center text-accent-primary transition-colors"
                           >
                             <Download className="w-4 h-4" />
@@ -221,7 +222,7 @@ export default function DashboardPage() {
                           </div>
                           <div className="flex items-center gap-2">
                             <a
-                              href={`http://localhost:5000${file.downloadUrl}`}
+                              href={`${API_URL}${file.downloadUrl}`}
                               className="w-8 h-8 rounded-lg bg-accent-primary/10 hover:bg-accent-primary/20 flex items-center justify-center text-accent-primary transition-colors"
                               title="Download"
                             >

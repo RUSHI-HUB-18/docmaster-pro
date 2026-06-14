@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import DropZone from '@/components/DropZone';
 import ToolPageLayout from '@/components/ToolPageLayout';
+import { API_URL } from '@/lib/config';
 
 export default function MergePage() {
   const [files, setFiles] = useState<File[]>([]);
@@ -78,7 +79,7 @@ export default function MergePage() {
 
     try {
       setProgress(40);
-      const response = await fetch('http://localhost:5000/api/pdf/merge', {
+      const response = await fetch(`${API_URL}/api/pdf/merge`, {
         method: 'POST',
         body: formData,
       });
@@ -156,7 +157,7 @@ export default function MergePage() {
 
             <div className="flex items-center gap-3 w-full max-w-sm">
               <a
-                href={`http://localhost:5000${successResult.downloadUrl}`}
+                href={`${API_URL}${successResult.downloadUrl}`}
                 className="flex-grow py-3 px-5 rounded-xl font-bold bg-accent-primary hover:bg-accent-primary/95 text-white flex items-center justify-center gap-2 shadow-lg shadow-accent-primary/10 transition-all hover:scale-[1.02]"
               >
                 <Download className="w-4 h-4" /> Download PDF
