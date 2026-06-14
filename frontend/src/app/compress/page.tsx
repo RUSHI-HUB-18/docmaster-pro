@@ -14,6 +14,7 @@ import {
   TrendingDown
 } from 'lucide-react';
 import DropZone from '@/components/DropZone';
+import ToolPageLayout from '@/components/ToolPageLayout';
 
 const COMPRESSION_LEVELS = [
   {
@@ -139,19 +140,14 @@ export default function CompressPage() {
   };
 
   return (
-    <div className="flex-grow max-w-4xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-12 flex flex-col gap-8 justify-center">
-      
-      {/* Header Info */}
-      <div className="text-center flex flex-col items-center gap-3">
-        <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-500 to-orange-600 flex items-center justify-center text-white shadow-md shadow-orange-500/10">
-          <Minimize className="w-6 h-6" />
-        </div>
-        <h1 className="text-3xl font-extrabold text-white tracking-tight">Compress PDF</h1>
-        <p className="text-slate-400 text-sm max-w-md">
-          Reduce the file size of your PDF while maintaining optimal visual quality.
-        </p>
-      </div>
-
+    <ToolPageLayout
+      toolPath="/compress"
+      title="Compress PDF"
+      description="Reduce the file size of your PDF while maintaining optimal visual quality."
+      icon="Minimize"
+      color="from-amber-500 to-orange-600"
+      badges={['Popular']}
+    >
       {/* Main Container */}
       <div className="rounded-3xl glass-panel p-6 sm:p-8 flex flex-col gap-6 relative overflow-hidden">
         
@@ -327,7 +323,6 @@ export default function CompressPage() {
           </div>
         )}
       </div>
-
-    </div>
+    </ToolPageLayout>
   );
 }

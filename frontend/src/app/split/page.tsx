@@ -14,7 +14,18 @@ import {
   Trash2
 } from 'lucide-react';
 import DropZone from '@/components/DropZone';
-import PdfPreview from '@/components/PdfPreview';
+import ToolPageLayout from '@/components/ToolPageLayout';
+import dynamic from 'next/dynamic';
+
+const PdfPreview = dynamic(() => import('@/components/PdfPreview'), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full h-64 border border-white/5 bg-slate-950/20 rounded-2xl flex flex-col items-center justify-center gap-3">
+      <div className="w-8 h-8 rounded-full border-2 border-accent-primary border-t-transparent animate-spin" />
+      <span className="text-slate-400 text-xs font-semibold">Loading document previewer...</span>
+    </div>
+  ),
+});
 
 interface PageRange {
   start: number;
@@ -142,19 +153,14 @@ export default function SplitPage() {
   };
 
   return (
-    <div className="flex-grow max-w-5xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-12 flex flex-col gap-8 justify-center">
-      
-      {/* Header Info */}
-      <div className="text-center flex flex-col items-center gap-3">
-        <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-pink-500 to-rose-600 flex items-center justify-center text-white shadow-md shadow-pink-500/10">
-          <Scissors className="w-6 h-6" />
-        </div>
-        <h1 className="text-3xl font-extrabold text-white tracking-tight">Split PDF</h1>
-        <p className="text-slate-400 text-sm max-w-md">
-          Extract specific page ranges or extract all pages as individual documents in a ZIP.
-        </p>
-      </div>
-
+    <ToolPageLayout
+      toolPath="/split"
+      title="Split PDF"
+      description="Extract specific page ranges or extract all pages as individual documents in a ZIP."
+      icon="Scissors"
+      color="from-pink-500 to-rose-600"
+      badges={['Popular']}
+    >
       {/* Main Container */}
       <div className="rounded-3xl glass-panel p-6 sm:p-8 flex flex-col gap-6 relative overflow-hidden">
         
@@ -361,7 +367,6 @@ export default function SplitPage() {
           </div>
         )}
       </div>
-
-    </div>
+    </ToolPageLayout>
   );
 }

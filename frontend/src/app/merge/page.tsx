@@ -15,6 +15,7 @@ import {
   RefreshCw
 } from 'lucide-react';
 import DropZone from '@/components/DropZone';
+import ToolPageLayout from '@/components/ToolPageLayout';
 
 export default function MergePage() {
   const [files, setFiles] = useState<File[]>([]);
@@ -124,19 +125,14 @@ export default function MergePage() {
   };
 
   return (
-    <div className="flex-grow max-w-4xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-12 flex flex-col gap-8 justify-center">
-      
-      {/* Header Info */}
-      <div className="text-center flex flex-col items-center gap-3">
-        <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-blue-500 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-blue-500/10">
-          <Combine className="w-6 h-6" />
-        </div>
-        <h1 className="text-3xl font-extrabold text-white tracking-tight">Merge PDF</h1>
-        <p className="text-slate-400 text-sm max-w-md">
-          Combine multiple PDF files into one. Arrange them in the exact order you need.
-        </p>
-      </div>
-
+    <ToolPageLayout
+      toolPath="/merge"
+      title="Merge PDF"
+      description="Combine multiple PDF files into one. Arrange them in the exact order you need."
+      icon="Combine"
+      color="from-blue-500 to-indigo-600"
+      badges={['Popular']}
+    >
       {/* Main Box */}
       <div className="rounded-3xl glass-panel p-6 sm:p-8 flex flex-col gap-6 relative overflow-hidden">
         
@@ -298,7 +294,6 @@ export default function MergePage() {
           </div>
         )}
       </div>
-
-    </div>
+    </ToolPageLayout>
   );
 }

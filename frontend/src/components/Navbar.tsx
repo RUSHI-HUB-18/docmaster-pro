@@ -231,11 +231,11 @@ export default function Navbar() {
             </Link>
 
             {/* Auth buttons */}
-            <Link href="/auth" className="hidden xl:flex btn-ghost text-xs py-1.5 px-3 gap-1.5">
+            <Link href="/auth" className="!hidden xl:!flex btn-ghost text-xs py-1.5 px-3 gap-1.5">
               <LogIn className="w-3.5 h-3.5" />
               Sign In
             </Link>
-            <Link href="/auth" className="btn-primary text-xs py-1.5 px-4 hidden sm:flex gap-1.5 whitespace-nowrap">
+            <Link href="/auth" className="btn-primary text-xs py-1.5 px-4 !hidden sm:!flex gap-1.5 whitespace-nowrap">
               Get Started
               <ArrowRight className="w-3.5 h-3.5" />
             </Link>
