@@ -72,7 +72,7 @@ const pdfTools: Tool[] = [
     category: 'pdf',
     group: 'Convert',
     icon: 'Image',
-    isLive: false,
+    isLive: true,
     color: 'from-teal-500 to-cyan-600',
     glow: 'rgba(20,184,166,0.15)',
   },

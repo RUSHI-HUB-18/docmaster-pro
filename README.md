@@ -16,7 +16,7 @@
 - **Live PDF Tools** — Merge, Split, Compress, Rotate (all functional with browser preview)
 - **Coming Soon** — Word, PPT, Excel, Image, and AI tools in development
 - **Zero sign-up** — 100% free, no registration required
-- **Secure** — Files auto-deleted after 1 hour, SSL encrypted, sandboxed processing
+- **Secure** — Files auto-deleted after 10 minutes, SSL encrypted, sandboxed processing
 - **Dashboard** — localStorage-backed file history, quick actions
 - **Search** — Instant search across all 40+ tools from the navbar
 
@@ -32,10 +32,15 @@ DocMaster Pro/
 │       ├── components/ # Navbar, Footer, ToolPageLayout, DownloadCenter, etc.
 │       └── lib/        # tools-data.ts (central registry of all 40+ tools)
 │
-├── backend/            # Express.js API server
-│   └── server.js       # PDF operations: merge, split, compress, rotate
+├── backend/            # Express.js + TypeScript API server
+│   └── src/
+│       ├── server.ts           # App entry point
+│       ├── routes/pdf.ts         # PDF API routes (merge, split, compress, rotate)
+│       ├── services/pdfService.ts
+│       ├── middleware/           # upload, validation
+│       └── utils/cleanup.ts
 │
-└── uploads/            # Temp file storage (auto-cleaned every hour)
+└── uploads/            # Temp file storage (sessions deleted after 10 minutes)
 ```
 
 ---
@@ -91,8 +96,8 @@ Since the app performs real PDF operations (like merging/compressing), the backe
   3. Connect the `docmaster-pro` repository.
   4. Fill in:
      - **Name**: `docmaster-pro-api`
-     - **Build Command**: `npm install && npm run build` (or `npm install` inside the backend directory)
-     - **Start Command**: `node dist/server.js` (or configure to build TS files and start)
+     - **Build Command**: `npm install && npm run build` (compiles TypeScript via `tsc` to `dist/`)
+     - **Start Command**: `npm start` (runs `node dist/server.js`)
      - **Root Directory**: `backend`
   5. Click **Create Web Service**. Render will host the API publicly (e.g., `https://docmaster-pro-api.onrender.com`).
 * **Connecting Frontend & Backend**:
@@ -110,10 +115,10 @@ Since the app performs real PDF operations (like merging/compressing), the backe
 | Animations | Framer Motion |
 | Icons | Lucide React |
 | PDF Preview | PDF.js (browser-native) |
-| Backend | Express.js 4 |
+| Backend | Express.js 4 + TypeScript |
 | PDF Processing | pdf-lib |
 | File Upload | Multer |
-| Cleanup | node-cron (1-hour auto-delete) |
+| Cleanup | `setInterval` sweep every 5 min (10-minute file retention) |
 
 ---
 
@@ -143,7 +148,7 @@ Since the app performs real PDF operations (like merging/compressing), the backe
 ## 🔒 Privacy & Security
 
 - Files stored in isolated `/uploads/` subdirectories
-- **Auto-deleted after 60 minutes** via cron job
+- **Auto-deleted after 10 minutes** via scheduled cleanup (sweeps every 5 minutes)
 - No file contents inspected or logged
 - All API routes served over HTTPS in production
 

@@ -7,7 +7,7 @@ import { motion } from 'framer-motion';
 import { getToolsByCategory, getGroupsByCategory } from '@/lib/tools-data';
 import { FileText, Code, Languages, Hash, RefreshCw, SpellCheck, AlignLeft } from 'lucide-react';
 
-const ICON_MAP: Record<string, React.ElementType> = {
+const ICON_MAP: Record<string, any> = {
   FileText, Code, Languages, Hash, RefreshCw, SpellCheck, AlignLeft, Sparkles,
   FileType,
 };

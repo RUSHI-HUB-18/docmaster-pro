@@ -49,7 +49,7 @@ export default function Footer() {
                 <span className="text-xs font-extrabold text-accent-primary uppercase tracking-widest">Start for free</span>
               </div>
               <h3 className="text-xl font-extrabold text-white">All document tools, zero sign-up required.</h3>
-              <p className="text-slate-400 text-sm">Process files instantly. Files deleted after 1 hour.</p>
+              <p className="text-slate-400 text-sm">Process files instantly. Files deleted after 10 minutes.</p>
             </div>
             <Link
               href="/pdf"
@@ -86,7 +86,7 @@ export default function Footer() {
 
               <div className="flex items-center gap-2 text-xs font-semibold text-emerald-400">
                 <Shield className="w-4 h-4 text-emerald-500" />
-                <span>All files auto-deleted after 1 hour</span>
+                <span>All files auto-deleted after 10 minutes</span>
               </div>
 
               {/* Social links */}

@@ -90,8 +90,7 @@ export default function SplitPage() {
     setProgress(20);
 
     const formData = new FormData();
-    const uploadId = crypto.randomUUID();
-    formData.append('uploadId', uploadId);
+    // uploadId is generated server-side for security — not sent by client
     formData.append('file', file);
     formData.append('mode', mode);
 
@@ -125,6 +124,9 @@ export default function SplitPage() {
       if (!response.ok || !result.success) {
         throw new Error(result.error || 'Failed to split PDF.');
       }
+
+      // Use the server-assigned uploadId
+      const uploadId = result.uploadId as string;
 
       setProgress(100);
       setSuccessResult({

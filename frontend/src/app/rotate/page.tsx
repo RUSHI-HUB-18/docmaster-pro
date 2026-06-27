@@ -69,8 +69,7 @@ export default function RotatePage() {
     setProgress(20);
 
     const formData = new FormData();
-    const uploadId = crypto.randomUUID();
-    formData.append('uploadId', uploadId);
+    // uploadId is generated server-side for security — not sent by client
     formData.append('file', file);
     
     // We only send pages that actually have a rotation !== 0 to optimize the payload/backend work
@@ -91,6 +90,9 @@ export default function RotatePage() {
       if (!response.ok || !result.success) {
         throw new Error(result.error || 'Failed to rotate PDF pages.');
       }
+
+      // Use the server-assigned uploadId
+      const uploadId = result.uploadId as string;
 
       setProgress(100);
       setSuccessResult({

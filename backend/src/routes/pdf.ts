@@ -1,242 +1,318 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import path from 'path';
-import fs from 'fs';
-import { upload } from '../middleware/upload';
+import fsSync from 'fs';
+import fs from 'fs/promises';
+import { upload, checkPdfMagicBytes, assignUploadId } from '../middleware/upload';
+import { validateCompress, validateSplit, validateRotate } from '../middleware/validation';
 import { PdfService } from '../services/pdfService';
 import { UPLOAD_DIR } from '../config';
 
 const router = Router();
 
-// Middleware to catch upload file filter errors
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+/** Catch multer file-filter errors and forward them as 400 responses */
 const handleUploadError = (err: any, req: Request, res: Response, next: NextFunction) => {
-  if (err instanceof Error) {
-    return res.status(400).json({ success: false, error: err.message });
+  if (err) {
+    // Multer-specific errors (file size, file count, filter rejection)
+    const status = err.code === 'LIMIT_FILE_SIZE' ? 413 : 400;
+    return res.status(status).json({ success: false, error: err.message });
   }
-  next(err);
+  next();
 };
 
 /**
- * Helper to get output path and URL for processed files
+ * Validates magic bytes on every uploaded file and cleans up + rejects
+ * the entire request if any file fails.
  */
+function enforceMagicBytes(req: Request, res: Response, next: NextFunction) {
+  const files = (req.files as Express.Multer.File[] | undefined) || [];
+  const single = req.file ? [req.file] : [];
+  const all = [...files, ...single];
+
+  for (const f of all) {
+    if (!checkPdfMagicBytes(f.path)) {
+      // Delete all uploaded files for this request immediately
+      for (const uploaded of all) {
+        try { fsSync.unlinkSync(uploaded.path); } catch {}
+      }
+      // Remove the session directory if empty
+      const sessionDir = path.dirname(all[0].path);
+      try {
+        if (fsSync.readdirSync(sessionDir).length === 0) fsSync.rmdirSync(sessionDir);
+      } catch {}
+
+      return res.status(400).json({
+        success: false,
+        error: 'File signature validation failed. Only valid PDF files are accepted.',
+      });
+    }
+  }
+
+  next();
+}
+
+/**
+ * Resolves and validates an output path, ensuring it stays within the
+ * user's session directory (prevents path traversal on both uploadId and filename).
+ */
+function safeSessionPath(uploadId: string, filename: string): string | null {
+  const safeUploadId = path.basename(uploadId);
+  const safeFilename = path.basename(filename);
+  const resolved = path.resolve(UPLOAD_DIR, safeUploadId, safeFilename);
+  const uploadRoot = path.resolve(UPLOAD_DIR);
+
+  // The resolved path must start with the uploads root
+  if (!resolved.startsWith(uploadRoot + path.sep)) return null;
+  return resolved;
+}
+
+/** Build the output config for processed files */
 const getOutputConfig = (uploadId: string, baseName: string, ext: string) => {
-  const userUploadDir = path.join(UPLOAD_DIR, uploadId);
+  const safeUploadId = path.basename(uploadId);
   const outFilename = `${baseName}_${Date.now()}${ext}`;
-  const outPath = path.join(userUploadDir, outFilename);
-  const downloadUrl = `/api/pdf/download/${uploadId}/${outFilename}`;
+  const outPath = path.join(UPLOAD_DIR, safeUploadId, outFilename);
+  const downloadUrl = `/api/pdf/download/${safeUploadId}/${outFilename}`;
   return { outPath, outFilename, downloadUrl };
 };
 
-/**
- * 1. PDF MERGE
- */
-router.post('/merge', upload.array('files'), handleUploadError, async (req: Request, res: Response) => {
+/** Async file existence check */
+async function fileExists(filePath: string): Promise<boolean> {
   try {
-    const files = req.files as Express.Multer.File[];
-    const uploadId = req.body.uploadId;
-
-    if (!files || files.length < 2) {
-      return res.status(400).json({ success: false, error: 'Please upload at least 2 PDF files to merge.' });
-    }
-
-    // Determine processing order
-    let order: number[] = [];
-    if (req.body.order) {
-      try {
-        order = JSON.parse(req.body.order);
-      } catch (e) {
-        // Fallback to comma separated
-        order = String(req.body.order).split(',').map(Number);
-      }
-    }
-
-    // Sort files based on order array if valid
-    let sortedFiles = [...files];
-    if (order.length === files.length) {
-      sortedFiles = order.map(index => files[index]).filter(Boolean);
-    }
-
-    const filePaths = sortedFiles.map(file => file.path);
-    const { outPath, outFilename, downloadUrl } = getOutputConfig(uploadId, 'merged', '.pdf');
-
-    await PdfService.mergePDFs(filePaths, outPath);
-
-    const stats = fs.statSync(outPath);
-
-    res.json({
-      success: true,
-      downloadUrl,
-      filename: 'merged.pdf',
-      size: stats.size,
-      message: 'PDFs merged successfully!'
-    });
-  } catch (err: any) {
-    console.error('Merge error:', err);
-    res.status(500).json({ success: false, error: err.message || 'Error occurred during PDF merge.' });
+    await fs.access(filePath);
+    return true;
+  } catch {
+    return false;
   }
-});
+}
 
-/**
- * 2. PDF SPLIT
- */
-router.post('/split', upload.single('file'), handleUploadError, async (req: Request, res: Response) => {
-  try {
-    const file = req.file as Express.Multer.File;
-    const uploadId = req.body.uploadId;
-    const mode = req.body.mode || 'all'; // 'all' or 'ranges'
-
-    if (!file) {
-      return res.status(400).json({ success: false, error: 'Please upload a PDF file to split.' });
-    }
-
-    let ranges: { start: number; end: number }[] = [];
-    if (mode === 'ranges' && req.body.ranges) {
-      try {
-        ranges = JSON.parse(req.body.ranges);
-      } catch (e) {
-        return res.status(400).json({ success: false, error: 'Invalid ranges format. Must be JSON array.' });
-      }
-    }
-
-    const userUploadDir = path.join(UPLOAD_DIR, uploadId);
-    const result = await PdfService.splitPDF(file.path, mode, ranges, userUploadDir);
-
-    const stats = fs.statSync(result.path);
-
-    res.json({
-      success: true,
-      downloadUrl: `/api/pdf/download/${uploadId}/${result.filename}`,
-      filename: result.filename,
-      size: stats.size,
-      isZip: result.isZip,
-      message: 'PDF split successfully!'
-    });
-  } catch (err: any) {
-    console.error('Split error:', err);
-    res.status(500).json({ success: false, error: err.message || 'Error occurred during PDF split.' });
-  }
-});
-
-/**
- * 3. PDF COMPRESS
- */
-router.post('/compress', upload.single('file'), handleUploadError, async (req: Request, res: Response) => {
-  try {
-    const file = req.file as Express.Multer.File;
-    const uploadId = req.body.uploadId;
-    const level = req.body.level || 'medium'; // 'basic', 'medium', 'strong'
-
-    if (!file) {
-      return res.status(400).json({ success: false, error: 'Please upload a PDF file to compress.' });
-    }
-
-    const { outPath, outFilename, downloadUrl } = getOutputConfig(uploadId, 'compressed', '.pdf');
-
-    const sizes = await PdfService.compressPDF(file.path, level, outPath);
-
-    res.json({
-      success: true,
-      downloadUrl,
-      filename: 'compressed.pdf',
-      originalSize: sizes.originalSize,
-      compressedSize: sizes.compressedSize,
-      message: 'PDF compressed successfully!'
-    });
-  } catch (err: any) {
-    console.error('Compression error:', err);
-    res.status(500).json({ success: false, error: err.message || 'Error occurred during PDF compression.' });
-  }
-});
-
-/**
- * 4. ROTATE PDF
- */
-router.post('/rotate', upload.single('file'), handleUploadError, async (req: Request, res: Response) => {
-  try {
-    const file = req.file as Express.Multer.File;
-    const uploadId = req.body.uploadId;
-
-    if (!file) {
-      return res.status(400).json({ success: false, error: 'Please upload a PDF file to rotate.' });
-    }
-
-    let rotations: { pageIndex: number; degrees: number }[] | { degrees: number };
-
-    if (req.body.rotations) {
-      try {
-        rotations = JSON.parse(req.body.rotations);
-      } catch (e) {
-        return res.status(400).json({ success: false, error: 'Invalid rotations format. Must be JSON.' });
-      }
-    } else if (req.body.degrees) {
-      rotations = { degrees: Number(req.body.degrees) };
-    } else {
-      return res.status(400).json({ success: false, error: 'Please specify rotations or degrees.' });
-    }
-
-    const { outPath, outFilename, downloadUrl } = getOutputConfig(uploadId, 'rotated', '.pdf');
-
-    await PdfService.rotatePDF(file.path, rotations, outPath);
-
-    const stats = fs.statSync(outPath);
-
-    res.json({
-      success: true,
-      downloadUrl,
-      filename: 'rotated.pdf',
-      size: stats.size,
-      message: 'PDF rotated successfully!'
-    });
-  } catch (err: any) {
-    console.error('Rotation error:', err);
-    res.status(500).json({ success: false, error: err.message || 'Error occurred during PDF rotation.' });
-  }
-});
-
-/**
- * 5. DOWNLOAD ROUTE
- */
-router.get('/download/:uploadId/:filename', (req: Request, res: Response) => {
-  const { uploadId, filename } = req.params;
-  
-  // Security check: prevent directory traversal
-  const safeFilename = path.basename(filename);
-  const safeUploadId = path.basename(uploadId);
-  const filePath = path.join(UPLOAD_DIR, safeUploadId, safeFilename);
-
-  if (fs.existsSync(filePath)) {
-    res.download(filePath, safeFilename);
-  } else {
-    res.status(404).json({ success: false, error: 'Requested file not found or has expired.' });
-  }
-});
-
-/**
- * 6. DELETE ROUTE (for manual deletion in Download Center)
- */
-router.delete('/delete/:uploadId/:filename', (req: Request, res: Response) => {
-  const { uploadId, filename } = req.params;
-  
-  const safeFilename = path.basename(filename);
-  const safeUploadId = path.basename(uploadId);
-  const filePath = path.join(UPLOAD_DIR, safeUploadId, safeFilename);
-
-  if (fs.existsSync(filePath)) {
+// ─── 1. PDF MERGE ─────────────────────────────────────────────────────────────
+router.post(
+  '/merge',
+  assignUploadId,
+  upload.array('files'),
+  handleUploadError,
+  enforceMagicBytes,
+  async (req: Request, res: Response) => {
     try {
-      fs.unlinkSync(filePath);
-      
-      // If folder is empty, clean it up too
-      const dirPath = path.dirname(filePath);
-      const remainingFiles = fs.readdirSync(dirPath);
-      if (remainingFiles.length === 0) {
-        fs.rmdirSync(dirPath);
+      const files = req.files as Express.Multer.File[];
+      const uploadId = (req as any).uploadSessionId as string;
+
+      if (!files || files.length < 2) {
+        return res.status(400).json({ success: false, error: 'Please upload at least 2 PDF files to merge.' });
       }
-      
-      res.json({ success: true, message: 'File deleted successfully.' });
-    } catch (e: any) {
-      res.status(500).json({ success: false, error: 'Could not delete file.' });
+
+      // Determine processing order (client sends index array)
+      let order: number[] = [];
+      if (req.body.order) {
+        try {
+          order = JSON.parse(req.body.order);
+        } catch {
+          order = String(req.body.order).split(',').map(Number);
+        }
+      }
+
+      let sortedFiles = [...files];
+      if (Array.isArray(order) && order.length === files.length) {
+        const reordered = order.map((i) => files[i]).filter(Boolean);
+        if (reordered.length === files.length) sortedFiles = reordered;
+      }
+
+      const filePaths = sortedFiles.map((f) => f.path);
+      const { outPath, outFilename, downloadUrl } = getOutputConfig(uploadId, 'merged', '.pdf');
+
+      await PdfService.mergePDFs(filePaths, outPath);
+
+      const stats = await fs.stat(outPath);
+
+      return res.json({
+        success: true,
+        uploadId,
+        downloadUrl,
+        filename: 'merged.pdf',
+        size: stats.size,
+        message: 'PDFs merged successfully!',
+      });
+    } catch (err: any) {
+      console.error('[Merge] Error:', err.message);
+      return res.status(500).json({ success: false, error: err.message || 'Error during PDF merge.' });
     }
-  } else {
-    res.status(404).json({ success: false, error: 'File already deleted or expired.' });
+  }
+);
+
+// ─── 2. PDF SPLIT ─────────────────────────────────────────────────────────────
+router.post(
+  '/split',
+  assignUploadId,
+  upload.single('file'),
+  handleUploadError,
+  enforceMagicBytes,
+  validateSplit,
+  async (req: Request, res: Response) => {
+    try {
+      const file = req.file as Express.Multer.File;
+      const uploadId = (req as any).uploadSessionId as string;
+      const mode = req.body.mode as 'all' | 'ranges';
+
+      if (!file) {
+        return res.status(400).json({ success: false, error: 'Please upload a PDF file to split.' });
+      }
+
+      let ranges: { start: number; end: number }[] = [];
+      if (mode === 'ranges' && req.body.ranges) {
+        try {
+          ranges = JSON.parse(req.body.ranges);
+        } catch {
+          return res.status(400).json({ success: false, error: 'Invalid ranges format.' });
+        }
+      }
+
+      const userUploadDir = path.join(UPLOAD_DIR, path.basename(uploadId));
+      const result = await PdfService.splitPDF(file.path, mode, ranges, userUploadDir);
+      const stats = await fs.stat(result.path);
+
+      return res.json({
+        success: true,
+        uploadId,
+        downloadUrl: `/api/pdf/download/${path.basename(uploadId)}/${result.filename}`,
+        filename: result.filename,
+        size: stats.size,
+        isZip: result.isZip,
+        message: 'PDF split successfully!',
+      });
+    } catch (err: any) {
+      console.error('[Split] Error:', err.message);
+      return res.status(500).json({ success: false, error: err.message || 'Error during PDF split.' });
+    }
+  }
+);
+
+// ─── 3. PDF COMPRESS ──────────────────────────────────────────────────────────
+router.post(
+  '/compress',
+  assignUploadId,
+  upload.single('file'),
+  handleUploadError,
+  enforceMagicBytes,
+  validateCompress,
+  async (req: Request, res: Response) => {
+    try {
+      const file = req.file as Express.Multer.File;
+      const uploadId = (req as any).uploadSessionId as string;
+      const level = req.body.level as 'basic' | 'medium' | 'strong';
+
+      if (!file) {
+        return res.status(400).json({ success: false, error: 'Please upload a PDF file to compress.' });
+      }
+
+      const { outPath, outFilename, downloadUrl } = getOutputConfig(uploadId, 'compressed', '.pdf');
+      const sizes = await PdfService.compressPDF(file.path, level, outPath);
+
+      return res.json({
+        success: true,
+        uploadId,
+        downloadUrl,
+        filename: 'compressed.pdf',
+        originalSize: sizes.originalSize,
+        compressedSize: sizes.compressedSize,
+        message: 'PDF compressed successfully!',
+      });
+    } catch (err: any) {
+      console.error('[Compress] Error:', err.message);
+      return res.status(500).json({ success: false, error: err.message || 'Error during PDF compression.' });
+    }
+  }
+);
+
+// ─── 4. PDF ROTATE ────────────────────────────────────────────────────────────
+router.post(
+  '/rotate',
+  assignUploadId,
+  upload.single('file'),
+  handleUploadError,
+  enforceMagicBytes,
+  validateRotate,
+  async (req: Request, res: Response) => {
+    try {
+      const file = req.file as Express.Multer.File;
+      const uploadId = (req as any).uploadSessionId as string;
+
+      if (!file) {
+        return res.status(400).json({ success: false, error: 'Please upload a PDF file to rotate.' });
+      }
+
+      let rotations: { pageIndex: number; degrees: number }[] | { degrees: number };
+
+      if (req.body.rotations) {
+        rotations = JSON.parse(req.body.rotations);
+      } else {
+        rotations = { degrees: Number(req.body.degrees) };
+      }
+
+      const { outPath, outFilename, downloadUrl } = getOutputConfig(uploadId, 'rotated', '.pdf');
+      await PdfService.rotatePDF(file.path, rotations, outPath);
+
+      const stats = await fs.stat(outPath);
+
+      return res.json({
+        success: true,
+        uploadId,
+        downloadUrl,
+        filename: 'rotated.pdf',
+        size: stats.size,
+        message: 'PDF rotated successfully!',
+      });
+    } catch (err: any) {
+      console.error('[Rotate] Error:', err.message);
+      return res.status(500).json({ success: false, error: err.message || 'Error during PDF rotation.' });
+    }
+  }
+);
+
+// ─── 5. DOWNLOAD ──────────────────────────────────────────────────────────────
+router.get('/download/:uploadId/:filename', async (req: Request, res: Response) => {
+  const filePath = safeSessionPath(req.params.uploadId, req.params.filename);
+
+  if (!filePath) {
+    return res.status(400).json({ success: false, error: 'Invalid request.' });
+  }
+
+  if (!(await fileExists(filePath))) {
+    return res.status(404).json({ success: false, error: 'File not found or has expired.' });
+  }
+
+  // Force download with a safe filename — never reflect user-controlled names
+  const safeDownloadName = path.basename(filePath);
+  res.setHeader('Content-Disposition', `attachment; filename="${safeDownloadName}"`);
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  return res.download(filePath, safeDownloadName);
+});
+
+// ─── 6. DELETE ────────────────────────────────────────────────────────────────
+router.delete('/delete/:uploadId/:filename', async (req: Request, res: Response) => {
+  const filePath = safeSessionPath(req.params.uploadId, req.params.filename);
+
+  if (!filePath) {
+    return res.status(400).json({ success: false, error: 'Invalid request.' });
+  }
+
+  if (!(await fileExists(filePath))) {
+    return res.status(404).json({ success: false, error: 'File not found or already deleted.' });
+  }
+
+  try {
+    await fs.unlink(filePath);
+
+    // Clean up session dir if now empty
+    const sessionDir = path.dirname(filePath);
+    try {
+      const remaining = await fs.readdir(sessionDir);
+      if (remaining.length === 0) await fs.rmdir(sessionDir);
+    } catch {}
+
+    return res.json({ success: true, message: 'File deleted successfully.' });
+  } catch {
+    return res.status(500).json({ success: false, error: 'Could not delete file.' });
   }
 });
 

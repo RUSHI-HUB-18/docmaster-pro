@@ -9,20 +9,24 @@
     "start": "node dist/server.js"
   },
   "dependencies": {
+    "compression": "^1.8.1",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
+    "express-rate-limit": "^8.5.2",
+    "helmet": "^8.2.0",
     "jszip": "^3.10.1",
     "multer": "^1.4.5-lts.1",
-    "pdf-lib": "^1.17.1",
-    "uuid": "^9.0.1"
+    "pdf-lib": "^1.17.1"
   },
   "devDependencies": {
+    "@types/compression": "^1.8.1",
     "@types/cors": "^2.8.17",
     "@types/express": "^4.17.21",
     "@types/multer": "^1.4.11",
     "@types/node": "^20.12.12",
-    "@types/uuid": "^9.0.8",
+    "form-data": "^4.0.6",
+    "node-fetch": "^3.3.2",
     "nodemon": "^3.1.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.4.5"

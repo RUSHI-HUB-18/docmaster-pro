@@ -65,8 +65,8 @@ export default function MergePage() {
     setProgress(15);
 
     const formData = new FormData();
-    const uploadId = crypto.randomUUID();
-    formData.append('uploadId', uploadId);
+    // Note: uploadId is generated server-side for security.
+    // Do NOT send a client-generated uploadId — it would be ignored.
 
     // Append files in their current visual order
     files.forEach(file => {
@@ -90,6 +90,9 @@ export default function MergePage() {
       if (!response.ok || !result.success) {
         throw new Error(result.error || 'Failed to merge PDF files.');
       }
+
+      // Use the server-assigned uploadId (never trust a client-generated one)
+      const uploadId = result.uploadId as string;
 
       setProgress(100);
       setSuccessResult({

@@ -11,8 +11,11 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CATEGORY_META, getPopularTools } from '@/lib/tools-data';
+import dynamic from 'next/dynamic';
 
-const ICON_MAP: Record<string, React.ElementType> = {
+const Hero3DBackground = dynamic(() => import('@/components/Hero3DBackground'), { ssr: false });
+
+const ICON_MAP: Record<string, any> = {
   FileText, Combine, Scissors, Minimize, RotateCw, Image, BrainCircuit,
   Languages, FileType, Presentation, Sheet, Sparkles,
 };
@@ -28,7 +31,7 @@ const STATS = [
   { label: 'Files Processed', value: '2.4M+', icon: CheckCircle, color: 'text-emerald-400' },
   { label: 'Size Reduction', value: '62%', icon: TrendingDown, color: 'text-accent-primary' },
   { label: 'Avg. Speed', value: '< 2s', icon: Zap, color: 'text-yellow-400' },
-  { label: 'Auto Cleanup', value: '1 Hour', icon: Clock, color: 'text-pink-400' },
+  { label: 'Auto Cleanup', value: '10 Min', icon: Clock, color: 'text-pink-400' },
 ];
 
 const HOW_IT_WORKS = [
@@ -49,7 +52,7 @@ const HOW_IT_WORKS = [
   {
     step: '03',
     title: 'Download Instantly',
-    description: 'Your file is processed in seconds. Download immediately. Files auto-deleted after 1 hour.',
+    description: 'Your file is processed in seconds. Download immediately. Files auto-deleted after 10 minutes.',
     icon: Zap,
     color: 'from-amber-500 to-orange-600',
   },
@@ -66,7 +69,7 @@ const FEATURES = [
   {
     icon: ShieldCheck,
     title: 'Bank-Grade Security',
-    description: 'SSL encrypted transfers, isolated sandboxes per request, and 1-hour auto deletion.',
+    description: 'SSL encrypted transfers, isolated sandboxes per request, and 10-minute auto deletion.',
     color: 'text-emerald-400',
     bg: 'bg-emerald-400/10',
   },
@@ -125,7 +128,7 @@ const TESTIMONIALS = [
     rating: 5,
   },
   {
-    quote: "The security model is exactly what our legal team needed. Files gone after 1 hour, SSL, no registration. It just works. Clean, fast, trustworthy.",
+    quote: "The security model is exactly what our legal team needed. Files gone after 10 minutes, SSL, no registration. It just works. Clean, fast, trustworthy.",
     name: 'Marcus T.',
     role: 'Head of Legal Operations',
     company: 'Meridian Law Group',
@@ -145,11 +148,11 @@ const TESTIMONIALS = [
 const FAQS = [
   {
     question: 'How does the file deletion policy work?',
-    answer: 'All uploaded files and processed outputs are automatically and permanently deleted from our servers exactly 1 hour after upload. You can also delete files manually at any time via the Download Center.',
+    answer: 'All uploaded files and processed outputs are automatically and permanently deleted from our servers exactly 10 minutes after upload. You can also delete files manually at any time via the Download Center.',
   },
   {
     question: 'Is my data secure when using DocMaster Pro?',
-    answer: 'Absolutely. Files are processed in isolated server sandboxes with no human access. All transfers use SSL/HTTPS encryption. No file contents are ever stored, cached, or logged beyond the 1-hour window.',
+    answer: 'Absolutely. Files are processed in isolated server sandboxes with no human access. All transfers use SSL/HTTPS encryption. No file contents are ever stored, cached, or logged beyond the 10-minute window.',
   },
   {
     question: 'Do I need to create an account?',
@@ -184,12 +187,14 @@ export default function Home() {
 
   return (
     <div className="flex flex-col w-full">
+      {/* 3D Global Background */}
+      <Hero3DBackground />
 
       {/* ══════════════════════════════════════════════════════════════ */}
       {/* 1. HERO SECTION                                              */}
       {/* ══════════════════════════════════════════════════════════════ */}
       <section className="relative pt-20 pb-20 md:pt-32 md:pb-28 overflow-hidden">
-        {/* Background glows */}
+        {/* Background glows (fallbacks/accents over the 3D layer) */}
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-accent-primary/10 rounded-full blur-[120px] pointer-events-none" />
         <div className="absolute top-40 right-0 w-80 h-80 bg-accent-secondary/8 rounded-full blur-[100px] pointer-events-none" />
         <div className="absolute top-20 left-0 w-64 h-64 bg-accent-tertiary/8 rounded-full blur-[100px] pointer-events-none" />
@@ -314,7 +319,7 @@ export default function Home() {
                 <Link href={cat.path} className="group block h-full">
                   <div className="rounded-2xl glass-panel glass-panel-hover p-5 flex flex-col items-center text-center gap-3 h-full">
                     <div className={`w-12 h-12 rounded-xl bg-gradient-to-tr ${cat.color} flex items-center justify-center group-hover:scale-110 transition-transform duration-300`}>
-                      <Icon className="w-6 h-6 text-white" />
+                      {React.createElement(Icon as any, { className: "w-6 h-6 text-white" })}
                     </div>
                     <div>
                       <div className="text-white font-bold text-sm group-hover:text-accent-primary transition-colors">{cat.name}</div>
@@ -561,7 +566,7 @@ export default function Home() {
               {[
                 { Icon: ShieldCheck, title: 'Sandbox Isolation', desc: 'Unique isolated folder per request. Never shared.' },
                 { Icon: Lock, title: 'SSL Encryption', desc: 'All transfers are TLS 1.3 encrypted end-to-end.' },
-                { Icon: Clock, title: 'Auto Deletion', desc: 'Files wiped automatically after 60 minutes.' },
+                { Icon: Clock, title: 'Auto Deletion', desc: 'Files wiped automatically after 10 minutes.' },
                 { Icon: CheckCircle, title: 'No Logging', desc: 'Zero file content inspection or logging.' },
               ].map(({ Icon, title, desc }) => (
                 <div key={title} className="flex items-start gap-2.5">
@@ -630,7 +635,7 @@ export default function Home() {
                     <Star key={si} className="w-4 h-4 text-yellow-400 fill-yellow-400" />
                   ))}
                 </div>
-                <p className="text-slate-300 text-sm leading-relaxed flex-grow">"{t.quote}"</p>
+                <p className="text-slate-300 text-sm leading-relaxed flex-grow">&quot;{t.quote}&quot;</p>
                 <div className="flex items-center gap-3 pt-2 border-t border-white/5">
                   <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-accent-primary to-accent-secondary flex items-center justify-center text-white text-xs font-extrabold">
                     {t.avatar}

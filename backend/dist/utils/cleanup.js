@@ -4,40 +4,77 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.runCleanup = runCleanup;
-const fs_1 = __importDefault(require("fs"));
+const promises_1 = __importDefault(require("fs/promises"));
 const path_1 = __importDefault(require("path"));
 const config_1 = require("../config");
-function runCleanup() {
-    console.log('[Cleanup] Starting sweep of upload directory...');
-    if (!fs_1.default.existsSync(config_1.UPLOAD_DIR)) {
-        return;
-    }
+/**
+ * Checks whether a path exists using async fs.
+ */
+async function pathExists(p) {
     try {
-        const files = fs_1.default.readdirSync(config_1.UPLOAD_DIR);
+        await promises_1.default.access(p);
+        return true;
+    }
+    catch {
+        return false;
+    }
+}
+/**
+ * Runs a cleanup sweep over the uploads directory.
+ * Deletes any session folder (and all its contents) whose CREATION time
+ * is older than CLEANUP_AGE_MS. Using birthtime (creation time) rather than
+ * mtime prevents files from being kept alive by incidental write operations.
+ *
+ * Fully async — never blocks the Node.js event loop.
+ */
+async function runCleanup() {
+    if (!(await pathExists(config_1.UPLOAD_DIR)))
+        return;
+    let swept = 0;
+    let deleted = 0;
+    try {
+        const entries = await promises_1.default.readdir(config_1.UPLOAD_DIR);
         const now = Date.now();
-        for (const file of files) {
-            const filePath = path_1.default.join(config_1.UPLOAD_DIR, file);
+        // Process entries concurrently for faster cleanup
+        const results = await Promise.allSettled(entries.map(async (entry) => {
+            const entryPath = path_1.default.join(config_1.UPLOAD_DIR, entry);
             try {
-                const stats = fs_1.default.statSync(filePath);
-                const age = now - stats.mtimeMs;
+                const stats = await promises_1.default.stat(entryPath);
+                // Use birthtime (creation time) as the age anchor.
+                // Fall back to mtime if birthtimeMs is unavailable (some Linux filesystems).
+                const createdAt = stats.birthtimeMs > 0 ? stats.birthtimeMs : stats.mtimeMs;
+                const age = now - createdAt;
                 if (age > config_1.CLEANUP_AGE_MS) {
-                    // Delete file or folder recursively
                     if (stats.isDirectory()) {
-                        fs_1.default.rmSync(filePath, { recursive: true, force: true });
-                        console.log(`[Cleanup] Deleted directory: ${file}`);
+                        await promises_1.default.rm(entryPath, { recursive: true, force: true });
+                        console.log(`[Cleanup] Removed session directory: ${entry} (age: ${Math.round(age / 1000)}s)`);
                     }
                     else {
-                        fs_1.default.unlinkSync(filePath);
-                        console.log(`[Cleanup] Deleted file: ${file}`);
+                        // Orphaned top-level file — should not exist in normal operation
+                        await promises_1.default.unlink(entryPath);
+                        console.log(`[Cleanup] Removed orphaned file: ${entry}`);
                     }
+                    return 'deleted';
                 }
+                return 'kept';
             }
-            catch (fileErr) {
-                console.error(`[Cleanup] Error processing ${file}:`, fileErr);
+            catch (entryErr) {
+                // Log the error but continue sweeping other entries
+                console.error(`[Cleanup] Could not process entry "${entry}":`, entryErr.message);
+                return 'error';
+            }
+        }));
+        for (const result of results) {
+            swept++;
+            if (result.status === 'fulfilled' && result.value === 'deleted') {
+                deleted++;
             }
         }
     }
     catch (err) {
-        console.error('[Cleanup] Error reading uploads directory:', err);
+        console.error('[Cleanup] Failed to read uploads directory:', err.message);
+    }
+    if (deleted > 0 || swept > 0) {
+        console.log(`[Cleanup] Sweep complete — checked: ${swept}, removed: ${deleted}`);
     }
 }

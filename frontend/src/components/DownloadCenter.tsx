@@ -26,8 +26,8 @@ export default function DownloadCenter() {
     if (saved) {
       try {
         const parsed = JSON.parse(saved) as ProcessedFile[];
-        // Filter out files older than 1 hour (expired)
-        const active = parsed.filter(f => Date.now() - f.timestamp < 60 * 60 * 1000);
+        // Filter out files older than 10 minutes (matches server retention policy)
+        const active = parsed.filter(f => Date.now() - f.timestamp < 10 * 60 * 1000);
         setFiles(active);
         if (active.length !== parsed.length) {
           localStorage.setItem('pdfmaster_processed_files', JSON.stringify(active));
@@ -54,8 +54,8 @@ export default function DownloadCenter() {
         if (saved) {
           try { current = JSON.parse(saved); } catch (e) {}
         }
-        // Exclude expired
-        current = current.filter(f => Date.now() - f.timestamp < 60 * 60 * 1000);
+        // Exclude expired (10-minute retention policy)
+        current = current.filter(f => Date.now() - f.timestamp < 10 * 60 * 1000);
         
         // Add new file at the beginning
         const updated = [customEvent.detail, ...current];
@@ -71,11 +71,13 @@ export default function DownloadCenter() {
   // Delete file
   const deleteFile = async (file: ProcessedFile) => {
     // Call backend delete route
-    try {
-      const url = `${API_URL}${file.downloadUrl.replace('/download/', '/delete/')}`;
-      await fetch(url, { method: 'DELETE' });
-    } catch (err) {
-      console.error('Failed to request backend deletion:', err);
+    if (!file.downloadUrl.startsWith('blob:') && !file.downloadUrl.startsWith('data:') && !file.downloadUrl.startsWith('http')) {
+      try {
+        const url = `${API_URL}${file.downloadUrl.replace('/download/', '/delete/')}`;
+        await fetch(url, { method: 'DELETE' });
+      } catch (err) {
+        console.error('Failed to request backend deletion:', err);
+      }
     }
 
     // Remove from UI list
@@ -94,7 +96,7 @@ export default function DownloadCenter() {
 
   const formatTimeLeft = (timestamp: number) => {
     const elapsed = Date.now() - timestamp;
-    const timeLeftMs = 60 * 60 * 1000 - elapsed;
+    const timeLeftMs = 10 * 60 * 1000 - elapsed;
     if (timeLeftMs <= 0) return 'Expired';
     const mins = Math.ceil(timeLeftMs / 1000 / 60);
     return `${mins}m left`;
@@ -191,7 +193,7 @@ export default function DownloadCenter() {
 
                   {/* Download Action */}
                   <a
-                    href={`${API_URL}${file.downloadUrl}`}
+                    href={file.downloadUrl.startsWith('blob:') || file.downloadUrl.startsWith('data:') || file.downloadUrl.startsWith('http') ? file.downloadUrl : `${API_URL}${file.downloadUrl}`}
                     className="w-full py-1.5 rounded-lg bg-accent-primary hover:bg-accent-primary/90 text-white text-[11px] font-bold text-center flex items-center justify-center gap-1.5 mt-1 transition-colors"
                   >
                     <Download className="w-3.5 h-3.5" /> Download PDF
@@ -202,7 +204,7 @@ export default function DownloadCenter() {
 
             {/* Note */}
             <div className="text-[10px] text-slate-500 text-center font-medium bg-white/2">
-              All files are processed in isolated workspaces and automatically deleted after 1 hour.
+              Files are processed in isolated sessions and automatically deleted after 10 minutes.
             </div>
           </motion.div>
         )}

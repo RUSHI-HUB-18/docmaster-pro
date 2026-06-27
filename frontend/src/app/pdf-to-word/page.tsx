@@ -32,7 +32,7 @@ export default function PDFToWordPage() {
           </div>
           <h2 className="text-2xl font-extrabold text-white mb-2">PDF to Word is in Development</h2>
           <p className="text-slate-400 text-sm max-w-md mx-auto leading-relaxed">
-            We're building a high-fidelity PDF-to-Word engine. Sign up to get notified when it launches.
+            We&apos;re building a high-fidelity PDF-to-Word engine. Sign up to get notified when it launches.
           </p>
         </div>
         <div className="flex gap-3">

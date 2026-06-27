@@ -7,7 +7,7 @@ import { motion } from 'framer-motion';
 import { getToolsByCategory, getGroupsByCategory } from '@/lib/tools-data';
 import { useState } from 'react';
 
-const ICON_MAP: Record<string, React.ElementType> = {
+const ICON_MAP: Record<string, any> = {
   FileText, Combine, Scissors, Minimize, RotateCw, Lock, Unlock, Stamp, PenLine,
   FileOutput, GripVertical, FilePlus, FileCheck, FileSpreadsheet, ScanLine, Wrench, Image, ImageIcon: Image
 };
@@ -117,7 +117,7 @@ export default function PDFCategoryPage() {
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-14">
         <div className="rounded-2xl border border-emerald-500/10 bg-emerald-500/5 p-5 flex items-center gap-4">
           <Shield className="w-6 h-6 text-emerald-400 shrink-0" />
-          <p className="text-slate-400 text-sm">All PDF operations run in isolated server sandboxes. Files are permanently deleted 1 hour after processing. No registration required.</p>
+          <p className="text-slate-400 text-sm">All PDF operations run in isolated server sandboxes. Files are permanently deleted 10 minutes after processing. No registration required.</p>
         </div>
       </section>
 

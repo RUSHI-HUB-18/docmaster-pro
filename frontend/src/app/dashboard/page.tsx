@@ -145,7 +145,7 @@ export default function DashboardPage() {
                     <div className="glass-panel rounded-xl p-8 text-center flex flex-col items-center gap-3">
                       <FileText className="w-10 h-10 text-slate-600" />
                       <div className="text-white font-bold">No files processed yet</div>
-                      <p className="text-slate-400 text-sm max-w-xs">Use any PDF tool to process a file — it'll appear here.</p>
+                      <p className="text-slate-400 text-sm max-w-xs">Use any PDF tool to process a file - it&apos;ll appear here.</p>
                       <Link href="/pdf" className="btn-primary text-sm py-2 px-5 mt-1">
                         Start Processing
                       </Link>
@@ -168,7 +168,7 @@ export default function DashboardPage() {
                             </div>
                           </div>
                           <a
-                            href={`${API_URL}${file.downloadUrl}`}
+                            href={file.downloadUrl.startsWith('blob:') || file.downloadUrl.startsWith('data:') || file.downloadUrl.startsWith('http') ? file.downloadUrl : `${API_URL}${file.downloadUrl}`}
                             className="w-8 h-8 rounded-lg bg-accent-primary/10 hover:bg-accent-primary/20 flex items-center justify-center text-accent-primary transition-colors"
                           >
                             <Download className="w-4 h-4" />
@@ -222,7 +222,7 @@ export default function DashboardPage() {
                           </div>
                           <div className="flex items-center gap-2">
                             <a
-                              href={`${API_URL}${file.downloadUrl}`}
+                              href={file.downloadUrl.startsWith('blob:') || file.downloadUrl.startsWith('data:') || file.downloadUrl.startsWith('http') ? file.downloadUrl : `${API_URL}${file.downloadUrl}`}
                               className="w-8 h-8 rounded-lg bg-accent-primary/10 hover:bg-accent-primary/20 flex items-center justify-center text-accent-primary transition-colors"
                               title="Download"
                             >

@@ -17,7 +17,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { CATEGORY_META, ALL_TOOLS, searchTools, type ToolCategory } from '@/lib/tools-data';
 
 // Icon mapping from string → component
-const ICON_MAP: Record<string, React.ElementType> = {
+const ICON_MAP: Record<string, any> = {
   FileText, Search, Sparkles, Shield, Combine, Scissors, Minimize, RotateCw,
   Lock, Unlock, Image, FileImage, Code, Languages, Hash, RefreshCw,
   BrainCircuit, MessageCircle, Wrench, ScanLine, Stamp, PenLine, FileOutput,
@@ -79,7 +79,7 @@ export default function Navbar() {
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
-    window.addEventListener('scroll', onScroll);
+    window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
@@ -212,7 +212,7 @@ export default function Navbar() {
                           );
                         })
                       ) : (
-                        <div className="text-sm text-slate-400 p-4 text-center">No tools found for "{searchQuery}"</div>
+                        <div className="text-sm text-slate-400 p-4 text-center">No tools found for &quot;{searchQuery}&quot;</div>
                       )}
                     </div>
                   </motion.div>

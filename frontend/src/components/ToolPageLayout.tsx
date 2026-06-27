@@ -13,7 +13,7 @@ import {
   FileImage, Unlock
 } from 'lucide-react';
 
-const ICON_MAP: Record<string, React.ElementType> = {
+const ICON_MAP: Record<string, any> = {
   FileText, Combine, Scissors, Minimize, RotateCw, Image, Sparkles, Code,
   Languages, Hash, RefreshCw, BrainCircuit, MessageCircle, Wrench, ScanLine,
   Stamp, PenLine, FileOutput, GripVertical, FilePlus, FileCheck, FileSpreadsheet,
@@ -54,7 +54,7 @@ export default function ToolPageLayout({
   const defaultFaqs: ToolFAQ[] = [
     {
       question: 'How secure is this tool?',
-      answer: 'All files are processed in isolated server sandboxes and automatically deleted 1 hour after upload. No human has access to your files, and all transfers are encrypted via SSL/HTTPS.',
+      answer: 'All files are processed in isolated server sandboxes and automatically deleted 10 minutes after upload. No human has access to your files, and all transfers are encrypted via SSL/HTTPS.',
     },
     {
       question: 'What is the maximum file size?',
@@ -62,7 +62,7 @@ export default function ToolPageLayout({
     },
     {
       question: 'Are my files stored permanently?',
-      answer: 'No. Files are deleted from our servers exactly 1 hour after processing. You can also manually delete them from the Download Center at any time.',
+      answer: 'No. Files are deleted from our servers exactly 10 minutes after processing. You can also manually delete them from the Download Center at any time.',
     },
   ];
 
@@ -103,7 +103,7 @@ export default function ToolPageLayout({
           <div className="flex flex-wrap items-center justify-center gap-4 mt-2">
             {[
               { Icon: Shield, text: 'SSL Encrypted' },
-              { Icon: Clock, text: '1-Hour Auto Delete' },
+              { Icon: Clock, text: '10-Minute Auto Delete' },
               { Icon: Lock, text: 'No Account Needed' },
               { Icon: CheckCircle, text: '100% Free' },
             ].map(({ Icon: TIcon, text }) => (
@@ -130,7 +130,7 @@ export default function ToolPageLayout({
           <div>
             <h3 className="text-white font-bold text-sm mb-1">Your files are safe with us</h3>
             <p className="text-slate-400 text-xs leading-relaxed">
-              All uploaded files are processed in isolated server containers and permanently deleted exactly 1 hour after upload.
+              All uploaded files are processed in isolated server containers and permanently deleted exactly 10 minutes after upload.
               No file content is ever inspected, shared, or logged. All data transfer is SSL/TLS encrypted.
             </p>
           </div>
