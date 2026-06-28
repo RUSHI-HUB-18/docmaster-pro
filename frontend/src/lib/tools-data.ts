@@ -245,7 +245,7 @@ const pdfTools: Tool[] = [
     category: 'pdf',
     group: 'Security',
     icon: 'Unlock',
-    isLive: false,
+    isLive: true,
     color: 'from-emerald-500 to-green-600',
     glow: 'rgba(16,185,129,0.15)',
   },
