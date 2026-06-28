@@ -360,7 +360,7 @@ export default function WordToPdfConverter() {
           margin-bottom: 0.75rem;
           line-height: 1.3;
         }
-        .word-preview h1 { font-size: 1.75rem; border-b: 1px solid #e2e8f0; pb: 0.5rem; }
+        .word-preview h1 { font-size: 1.75rem; border-b: 1px solid #e2e8f0; padding-bottom: 0.5rem; }
         .word-preview h2 { font-size: 1.4rem; }
         .word-preview h3 { font-size: 1.2rem; }
         .word-preview ul, .word-preview ol {
