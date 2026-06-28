@@ -425,7 +425,7 @@ const powerpointTools: Tool[] = [
     category: 'powerpoint',
     group: 'Edit',
     icon: 'Combine',
-    isLive: false,
+    isLive: true,
     color: 'from-orange-500 to-amber-600',
     glow: 'rgba(249,115,22,0.15)',
   },
