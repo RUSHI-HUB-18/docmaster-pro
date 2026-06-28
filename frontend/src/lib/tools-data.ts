@@ -414,7 +414,7 @@ const powerpointTools: Tool[] = [
     category: 'powerpoint',
     group: 'Edit',
     icon: 'Minimize',
-    isLive: false,
+    isLive: true,
     color: 'from-rose-500 to-pink-600',
     glow: 'rgba(244,63,94,0.15)',
   },
