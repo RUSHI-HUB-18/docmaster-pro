@@ -18,6 +18,16 @@ import { marked } from 'marked';
 import DOMPurify from 'dompurify';
 import { formatSize } from '@/lib/utils';
 
+// Emoji font fallback chain for cross-platform support
+const EMOJI_FONTS = `'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji'`;
+
+// Google Fonts to load per theme
+const GOOGLE_FONT_URLS: Record<string, string> = {
+  classic: 'https://fonts.googleapis.com/css2?family=Merriweather:ital,wght@0,300;0,400;0,700;0,900;1,400&family=Source+Code+Pro:wght@400;500&display=swap',
+  modern: 'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Fira+Code:wght@400;500&display=swap',
+  minimal: 'https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap',
+};
+
 type PdfTheme = 'classic' | 'modern' | 'minimal';
 
 const THEMES: { id: PdfTheme; title: string; desc: string }[] = [
@@ -27,67 +37,77 @@ const THEMES: { id: PdfTheme; title: string; desc: string }[] = [
 ];
 
 function getThemeCSS(theme: PdfTheme): string {
+  const scope = '.markdown-preview-container';
   switch (theme) {
     case 'classic':
       return `
-        body { font-family: 'Georgia', 'Times New Roman', serif; color: #1a1a1a; line-height: 1.8; max-width: 720px; margin: 0 auto; padding: 40px 24px; }
-        h1 { font-size: 28px; border-bottom: 2px solid #8b5e3c; padding-bottom: 8px; margin-bottom: 20px; color: #3d2b1f; }
-        h2 { font-size: 22px; color: #5a3e28; margin-top: 28px; }
-        h3 { font-size: 18px; color: #6b4a2e; margin-top: 20px; }
-        p { margin: 10px 0; }
-        code { background: #f5f0e8; padding: 2px 6px; border-radius: 4px; font-size: 0.9em; font-family: 'Courier New', monospace; }
-        pre { background: #f5f0e8; padding: 16px; border-radius: 8px; overflow-x: auto; border-left: 4px solid #8b5e3c; }
-        pre code { background: none; padding: 0; }
-        blockquote { border-left: 4px solid #c4a87c; margin: 16px 0; padding: 12px 20px; background: #faf6f0; color: #5a4a3a; font-style: italic; border-radius: 0 8px 8px 0; }
-        table { border-collapse: collapse; width: 100%; margin: 16px 0; }
-        th, td { border: 1px solid #d4c4a8; padding: 10px 14px; text-align: left; }
-        th { background: #f5ede0; font-weight: 700; }
-        a { color: #8b5e3c; }
-        ul, ol { padding-left: 24px; }
-        li { margin: 4px 0; }
-        hr { border: none; border-top: 1px solid #d4c4a8; margin: 24px 0; }
-        img { max-width: 100%; border-radius: 8px; }
+        ${scope} { font-family: 'Merriweather', 'Georgia', 'Times New Roman', serif, ${EMOJI_FONTS}; color: #1a1a1a; line-height: 1.8; max-width: 720px; margin: 0 auto; padding: 40px 24px; font-size: 15px; -webkit-font-smoothing: antialiased; }
+        ${scope} h1, ${scope} h2, ${scope} h3, ${scope} h4, ${scope} h5, ${scope} h6 { font-family: 'Merriweather', 'Georgia', serif, ${EMOJI_FONTS}; }
+        ${scope} h1 { font-size: 28px; border-bottom: 2px solid #8b5e3c; padding-bottom: 8px; margin-bottom: 20px; color: #3d2b1f; font-weight: 900; }
+        ${scope} h2 { font-size: 22px; color: #5a3e28; margin-top: 28px; font-weight: 700; }
+        ${scope} h3 { font-size: 18px; color: #6b4a2e; margin-top: 20px; font-weight: 700; }
+        ${scope} p { margin: 10px 0; }
+        ${scope} code { background: #f5f0e8; padding: 2px 6px; border-radius: 4px; font-size: 0.88em; font-family: 'Source Code Pro', 'Courier New', monospace; }
+        ${scope} pre { background: #f5f0e8; padding: 16px; border-radius: 8px; overflow-x: auto; border-left: 4px solid #8b5e3c; }
+        ${scope} pre code { background: none; padding: 0; }
+        ${scope} blockquote { border-left: 4px solid #c4a87c; margin: 16px 0; padding: 12px 20px; background: #faf6f0; color: #5a4a3a; font-style: italic; border-radius: 0 8px 8px 0; }
+        ${scope} table { border-collapse: collapse; width: 100%; margin: 16px 0; }
+        ${scope} th, ${scope} td { border: 1px solid #d4c4a8; padding: 10px 14px; text-align: left; }
+        ${scope} th { background: #f5ede0; font-weight: 700; }
+        ${scope} a { color: #8b5e3c; }
+        ${scope} ul, ${scope} ol { padding-left: 24px; }
+        ${scope} li { margin: 4px 0; }
+        ${scope} hr { border: none; border-top: 1px solid #d4c4a8; margin: 24px 0; }
+        ${scope} img { max-width: 100%; border-radius: 8px; }
+        ${scope} strong { font-weight: 700; }
+        ${scope} em { font-style: italic; }
       `;
     case 'modern':
       return `
-        body { font-family: 'Inter', 'Segoe UI', system-ui, sans-serif; color: #1e293b; line-height: 1.75; max-width: 720px; margin: 0 auto; padding: 40px 24px; }
-        h1 { font-size: 28px; font-weight: 800; background: linear-gradient(135deg, #3b82f6, #6366f1); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 16px; }
-        h2 { font-size: 22px; font-weight: 700; color: #334155; margin-top: 28px; }
-        h3 { font-size: 18px; font-weight: 600; color: #475569; margin-top: 20px; }
-        p { margin: 10px 0; color: #374151; }
-        code { background: #f1f5f9; padding: 2px 6px; border-radius: 6px; font-size: 0.88em; color: #6366f1; font-family: 'Fira Code', 'Consolas', monospace; }
-        pre { background: #0f172a; color: #e2e8f0; padding: 16px; border-radius: 12px; overflow-x: auto; }
-        pre code { background: none; padding: 0; color: #e2e8f0; }
-        blockquote { border-left: 4px solid #6366f1; margin: 16px 0; padding: 12px 20px; background: #f0f0ff; color: #4338ca; border-radius: 0 12px 12px 0; }
-        table { border-collapse: collapse; width: 100%; margin: 16px 0; border-radius: 12px; overflow: hidden; }
-        th, td { border: 1px solid #e2e8f0; padding: 10px 14px; text-align: left; }
-        th { background: #f1f5f9; font-weight: 700; color: #334155; }
-        a { color: #3b82f6; text-decoration: none; }
-        a:hover { text-decoration: underline; }
-        ul, ol { padding-left: 24px; }
-        li { margin: 4px 0; }
-        hr { border: none; border-top: 2px solid #e2e8f0; margin: 24px 0; }
-        img { max-width: 100%; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+        ${scope} { font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif, ${EMOJI_FONTS}; color: #1e293b; line-height: 1.75; max-width: 720px; margin: 0 auto; padding: 40px 24px; font-size: 15px; -webkit-font-smoothing: antialiased; }
+        ${scope} h1, ${scope} h2, ${scope} h3, ${scope} h4, ${scope} h5, ${scope} h6 { font-family: 'Inter', 'Segoe UI', sans-serif, ${EMOJI_FONTS}; }
+        ${scope} h1 { font-size: 28px; font-weight: 800; background: linear-gradient(135deg, #3b82f6, #6366f1); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 16px; }
+        ${scope} h2 { font-size: 22px; font-weight: 700; color: #334155; margin-top: 28px; }
+        ${scope} h3 { font-size: 18px; font-weight: 600; color: #475569; margin-top: 20px; }
+        ${scope} p { margin: 10px 0; color: #374151; }
+        ${scope} code { background: #f1f5f9; padding: 2px 6px; border-radius: 6px; font-size: 0.86em; color: #6366f1; font-family: 'Fira Code', 'Consolas', monospace; }
+        ${scope} pre { background: #0f172a; color: #e2e8f0; padding: 16px; border-radius: 12px; overflow-x: auto; }
+        ${scope} pre code { background: none; padding: 0; color: #e2e8f0; }
+        ${scope} blockquote { border-left: 4px solid #6366f1; margin: 16px 0; padding: 12px 20px; background: #f0f0ff; color: #4338ca; border-radius: 0 12px 12px 0; }
+        ${scope} table { border-collapse: collapse; width: 100%; margin: 16px 0; border-radius: 12px; overflow: hidden; }
+        ${scope} th, ${scope} td { border: 1px solid #e2e8f0; padding: 10px 14px; text-align: left; }
+        ${scope} th { background: #f1f5f9; font-weight: 700; color: #334155; }
+        ${scope} a { color: #3b82f6; text-decoration: none; }
+        ${scope} a:hover { text-decoration: underline; }
+        ${scope} ul, ${scope} ol { padding-left: 24px; }
+        ${scope} li { margin: 4px 0; }
+        ${scope} hr { border: none; border-top: 2px solid #e2e8f0; margin: 24px 0; }
+        ${scope} img { max-width: 100%; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+        ${scope} strong { font-weight: 700; }
+        ${scope} em { font-style: italic; }
       `;
     case 'minimal':
       return `
-        body { font-family: 'Helvetica Neue', 'Arial', sans-serif; color: #111; line-height: 1.7; max-width: 680px; margin: 0 auto; padding: 48px 24px; }
-        h1 { font-size: 26px; font-weight: 700; letter-spacing: -0.5px; margin-bottom: 16px; }
-        h2 { font-size: 20px; font-weight: 600; margin-top: 32px; }
-        h3 { font-size: 16px; font-weight: 600; margin-top: 24px; }
-        p { margin: 8px 0; color: #333; }
-        code { background: #f4f4f4; padding: 2px 5px; border-radius: 3px; font-size: 0.9em; }
-        pre { background: #f4f4f4; padding: 14px; border-radius: 6px; overflow-x: auto; }
-        pre code { background: none; padding: 0; }
-        blockquote { border-left: 3px solid #ccc; margin: 14px 0; padding: 8px 16px; color: #555; }
-        table { border-collapse: collapse; width: 100%; margin: 14px 0; }
-        th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
-        th { background: #f9f9f9; font-weight: 600; }
-        a { color: #111; }
-        ul, ol { padding-left: 20px; }
-        li { margin: 3px 0; }
-        hr { border: none; border-top: 1px solid #eee; margin: 28px 0; }
-        img { max-width: 100%; }
+        ${scope} { font-family: 'DM Sans', 'Helvetica Neue', 'Arial', sans-serif, ${EMOJI_FONTS}; color: #111; line-height: 1.7; max-width: 680px; margin: 0 auto; padding: 48px 24px; font-size: 15px; -webkit-font-smoothing: antialiased; }
+        ${scope} h1, ${scope} h2, ${scope} h3, ${scope} h4, ${scope} h5, ${scope} h6 { font-family: 'DM Sans', 'Helvetica Neue', sans-serif, ${EMOJI_FONTS}; }
+        ${scope} h1 { font-size: 26px; font-weight: 700; letter-spacing: -0.5px; margin-bottom: 16px; }
+        ${scope} h2 { font-size: 20px; font-weight: 600; margin-top: 32px; }
+        ${scope} h3 { font-size: 16px; font-weight: 600; margin-top: 24px; }
+        ${scope} p { margin: 8px 0; color: #333; }
+        ${scope} code { background: #f4f4f4; padding: 2px 5px; border-radius: 3px; font-size: 0.9em; }
+        ${scope} pre { background: #f4f4f4; padding: 14px; border-radius: 6px; overflow-x: auto; }
+        ${scope} pre code { background: none; padding: 0; }
+        ${scope} blockquote { border-left: 3px solid #ccc; margin: 14px 0; padding: 8px 16px; color: #555; }
+        ${scope} table { border-collapse: collapse; width: 100%; margin: 14px 0; }
+        ${scope} th, ${scope} td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+        ${scope} th { background: #f9f9f9; font-weight: 600; }
+        ${scope} a { color: #111; }
+        ${scope} ul, ${scope} ol { padding-left: 20px; }
+        ${scope} li { margin: 3px 0; }
+        ${scope} hr { border: none; border-top: 1px solid #eee; margin: 28px 0; }
+        ${scope} img { max-width: 100%; }
+        ${scope} strong { font-weight: 600; }
+        ${scope} em { font-style: italic; }
       `;
   }
 }
@@ -101,6 +121,7 @@ export default function MarkdownToPdfConverter() {
   const [progress, setProgress] = useState(0);
   const [currentTask, setCurrentTask] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [fontsLoaded, setFontsLoaded] = useState(false);
   const [successResult, setSuccessResult] = useState<{
     downloadUrl: string;
     name: string;
@@ -130,6 +151,30 @@ export default function MarkdownToPdfConverter() {
     };
     parseMarkdown();
   }, [markdownText]);
+
+  // Load Google Fonts when theme changes
+  useEffect(() => {
+    setFontsLoaded(false);
+    const fontUrl = GOOGLE_FONT_URLS[theme];
+    if (!fontUrl) return;
+
+    // Remove any previous font link we added
+    const prevLink = document.getElementById('md-theme-font');
+    if (prevLink) prevLink.remove();
+
+    const link = document.createElement('link');
+    link.id = 'md-theme-font';
+    link.rel = 'stylesheet';
+    link.href = fontUrl;
+    link.onload = () => setFontsLoaded(true);
+    link.onerror = () => setFontsLoaded(true); // proceed anyway
+    document.head.appendChild(link);
+
+    return () => {
+      const el = document.getElementById('md-theme-font');
+      if (el) el.remove();
+    };
+  }, [theme]);
 
   const handleFilesSelected = async (selected: File[]) => {
     if (selected.length === 0) return;
@@ -182,11 +227,13 @@ export default function MarkdownToPdfConverter() {
       const opt = {
         margin: [0.5, 0.6, 0.5, 0.6],
         filename: `${(file?.name || 'document').replace(/\.[^/.]+$/, '')}.pdf`,
-        image: { type: 'jpeg', quality: 0.95 },
+        image: { type: 'jpeg', quality: 0.98 },
         html2canvas: {
-          scale: 2,
+          scale: 3,            // Higher scale = sharper fonts & emoji
           useCORS: true,
           logging: false,
+          letterRendering: true,
+          allowTaint: false,
         },
         jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' as const },
       };
