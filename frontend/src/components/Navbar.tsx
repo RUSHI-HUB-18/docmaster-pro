@@ -11,7 +11,7 @@ import {
   BrainCircuit, MessageCircle, Wrench, ScanLine, Stamp,
   PenLine, FileOutput, GripVertical, FilePlus, FileCheck,
   FileSpreadsheet, SpellCheck, AlignLeft, Presentation,
-  Sheet, Table, Expand, MessageSquare, FileType, Layout
+  Sheet, Table, Expand, MessageSquare, FileType, Layout, FileCode, Pencil
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CATEGORY_META, ALL_TOOLS, searchTools, type ToolCategory } from '@/lib/tools-data';
@@ -22,17 +22,35 @@ const ICON_MAP: Record<string, any> = {
   Lock, Unlock, Image, FileImage, Code, Languages, Hash, RefreshCw,
   BrainCircuit, MessageCircle, Wrench, ScanLine, Stamp, PenLine, FileOutput,
   GripVertical, FilePlus, FileCheck, FileSpreadsheet, SpellCheck, AlignLeft,
-  Presentation, Sheet, Table, Expand, MessageSquare, FileType, Layout,
+  Presentation, Sheet, Table, Expand, MessageSquare, FileType, Layout, FileCode, Pencil,
   ImageIcon: Image,
 };
 
 // Grouped tools for each mega-menu
 const MEGA_MENU: Record<ToolCategory, { group: string; tools: typeof ALL_TOOLS }[]> = {
   pdf: [
-    { group: 'Convert', tools: ALL_TOOLS.filter(t => t.category === 'pdf' && t.group === 'Convert').slice(0, 4) },
+    {
+      group: 'Edit & Create',
+      tools: ALL_TOOLS.filter(t =>
+        t.category === 'pdf' &&
+        (t.group === 'Edit' || t.path === '/markdown-to-pdf' || t.path === '/word-to-pdf' || t.path === '/ppt-to-pdf')
+      )
+    },
+    {
+      group: 'Convert',
+      tools: ALL_TOOLS.filter(t =>
+        t.category === 'pdf' &&
+        (t.group === 'Convert' || t.path === '/excel-to-pdf' || t.path === '/image-to-pdf')
+      )
+    },
     { group: 'Organize', tools: ALL_TOOLS.filter(t => t.category === 'pdf' && t.group === 'Organize') },
-    { group: 'Optimize', tools: ALL_TOOLS.filter(t => t.category === 'pdf' && t.group === 'Optimize') },
-    { group: 'Security', tools: ALL_TOOLS.filter(t => t.category === 'pdf' && t.group === 'Security') },
+    {
+      group: 'Optimize & Security',
+      tools: ALL_TOOLS.filter(t =>
+        t.category === 'pdf' &&
+        (t.group === 'Optimize' || t.group === 'Security')
+      )
+    },
   ],
   word: [
     { group: 'Convert', tools: ALL_TOOLS.filter(t => t.category === 'word' && t.group === 'Convert') },
