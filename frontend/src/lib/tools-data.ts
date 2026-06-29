@@ -133,6 +133,18 @@ const pdfTools: Tool[] = [
     color: 'from-pink-500 to-rose-600',
     glow: 'rgba(236,72,153,0.15)',
   },
+  {
+    name: 'Markdown to PDF',
+    description: 'Convert Markdown files to beautifully styled PDFs',
+    path: '/markdown-to-pdf',
+    category: 'pdf',
+    group: 'Create',
+    icon: 'FileCode',
+    badge: 'New',
+    isLive: true,
+    color: 'from-purple-500 to-violet-600',
+    glow: 'rgba(139,92,246,0.15)',
+  },
   // Organize
   {
     name: 'Merge PDF',
