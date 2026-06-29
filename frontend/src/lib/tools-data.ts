@@ -662,14 +662,23 @@ export const CATEGORY_META: CategoryMeta[] = [
   },
 ];
 
+const categoryMap: Record<ToolCategory, Tool[]> = {
+  pdf: pdfTools,
+  word: wordTools,
+  powerpoint: powerpointTools,
+  excel: excelTools,
+  images: imageTools,
+  'ai-tools': aiTools,
+};
+
 export const getToolsByCategory = (category: ToolCategory) =>
-  ALL_TOOLS.filter((t) => t.category === category);
+  categoryMap[category] || ALL_TOOLS.filter((t) => t.category === category);
 
 export const getToolsByGroup = (category: ToolCategory, group: string) =>
-  ALL_TOOLS.filter((t) => t.category === category && t.group === group);
+  getToolsByCategory(category).filter((t) => t.group === group);
 
 export const getGroupsByCategory = (category: ToolCategory): string[] => [
-  ...new Set(ALL_TOOLS.filter((t) => t.category === category).map((t) => t.group)),
+  ...new Set(getToolsByCategory(category).map((t) => t.group)),
 ];
 
 export const searchTools = (query: string): Tool[] => {
@@ -687,5 +696,9 @@ export const searchTools = (query: string): Tool[] => {
 export const getPopularTools = (): Tool[] =>
   ALL_TOOLS.filter((t) => t.badge === 'Popular' || t.isLive).slice(0, 8);
 
-export const getRelatedTools = (currentPath: string, limit = 4): Tool[] =>
-  ALL_TOOLS.filter((t) => t.path !== currentPath).slice(0, limit);
+export const getRelatedTools = (currentPath: string, limit = 4): Tool[] => {
+  const current = ALL_TOOLS.find(t => t.path === currentPath);
+  const sameCat = ALL_TOOLS.filter(t => t.path !== currentPath && t.category === current?.category);
+  const others = ALL_TOOLS.filter(t => t.path !== currentPath && t.category !== current?.category);
+  return [...sameCat, ...others].slice(0, limit);
+};

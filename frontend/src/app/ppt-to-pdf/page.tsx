@@ -3,6 +3,7 @@
 import React from 'react';
 import ToolPageLayout from '@/components/ToolPageLayout';
 import dynamic from 'next/dynamic';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 const PptToPdfConverter = dynamic(() => import('@/components/PptToPdfConverter'), {
   ssr: false,
@@ -24,7 +25,9 @@ export default function PPTToPDFPage() {
       color="from-orange-500 to-red-600"
       badges={['Popular']}
     >
-      <PptToPdfConverter />
+      <ErrorBoundary>
+        <PptToPdfConverter />
+      </ErrorBoundary>
     </ToolPageLayout>
   );
 }

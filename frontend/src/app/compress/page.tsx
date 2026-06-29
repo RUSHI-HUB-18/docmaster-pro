@@ -16,6 +16,7 @@ import {
 import DropZone from '@/components/DropZone';
 import ToolPageLayout from '@/components/ToolPageLayout';
 import { API_URL } from '@/lib/config';
+import { formatSize } from '@/lib/utils';
 
 const COMPRESSION_LEVELS = [
   {
@@ -234,7 +235,7 @@ export default function CompressPage() {
           </div>
         ) : !file ? (
           /* Upload State */
-          <DropZone
+          <DropZone accept=".pdf"
             onFilesSelected={handleFilesSelected}
             multiple={false}
             selectedFiles={[]}

@@ -3,6 +3,7 @@
 import React from 'react';
 import ToolPageLayout from '@/components/ToolPageLayout';
 import dynamic from 'next/dynamic';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 const CompressPptConverter = dynamic(() => import('@/components/CompressPptConverter'), {
   ssr: false,
@@ -24,7 +25,9 @@ export default function CompressPPTPage() {
       color="from-rose-500 to-pink-600"
       badges={[]}
     >
-      <CompressPptConverter />
+      <ErrorBoundary>
+        <CompressPptConverter />
+      </ErrorBoundary>
     </ToolPageLayout>
   );
 }

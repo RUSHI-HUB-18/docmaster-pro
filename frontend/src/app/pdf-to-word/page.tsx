@@ -3,6 +3,7 @@
 import React from 'react';
 import ToolPageLayout from '@/components/ToolPageLayout';
 import dynamic from 'next/dynamic';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 const PdfToWordConverter = dynamic(() => import('@/components/PdfToWordConverter'), {
   ssr: false,
@@ -29,7 +30,9 @@ export default function PDFToWordPage() {
         { question: 'What Word formats are supported?', answer: 'We output standard .docx format compatible with Microsoft Word 2016+, Google Docs, and LibreOffice.' },
       ]}
     >
-      <PdfToWordConverter />
+      <ErrorBoundary>
+        <PdfToWordConverter />
+      </ErrorBoundary>
     </ToolPageLayout>
   );
 }

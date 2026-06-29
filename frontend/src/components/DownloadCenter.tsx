@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { Download, Trash2, Clock, FileText, CheckCircle2, ChevronRight, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { API_URL } from '@/lib/config';
+import { formatSize } from '@/lib/utils';
 
 export interface ProcessedFile {
   id: string; // uploadId
@@ -36,6 +37,19 @@ export default function DownloadCenter() {
         console.error(e);
       }
     }
+    
+    // Auto-refresh timer to remove expired files
+    const interval = setInterval(() => {
+      setFiles(prev => {
+        const active = prev.filter(f => Date.now() - f.timestamp < 10 * 60 * 1000);
+        if (active.length !== prev.length) {
+          localStorage.setItem('pdfmaster_processed_files', JSON.stringify(active));
+        }
+        return active;
+      });
+    }, 30_000);
+    
+    return () => clearInterval(interval);
   }, []);
 
   // Sync to localStorage
@@ -85,14 +99,6 @@ export default function DownloadCenter() {
     saveFiles(updated);
   };
 
-  const formatSize = (bytes?: number) => {
-    if (!bytes) return '';
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  };
 
   const formatTimeLeft = (timestamp: number) => {
     const elapsed = Date.now() - timestamp;
@@ -196,7 +202,7 @@ export default function DownloadCenter() {
                     href={file.downloadUrl.startsWith('blob:') || file.downloadUrl.startsWith('data:') || file.downloadUrl.startsWith('http') ? file.downloadUrl : `${API_URL}${file.downloadUrl}`}
                     className="w-full py-1.5 rounded-lg bg-accent-primary hover:bg-accent-primary/90 text-white text-[11px] font-bold text-center flex items-center justify-center gap-1.5 mt-1 transition-colors"
                   >
-                    <Download className="w-3.5 h-3.5" /> Download PDF
+                    <Download className="w-3.5 h-3.5" /> Download {file.name ? file.name.split('.').pop()?.toUpperCase() : 'FILE'}
                   </a>
                 </div>
               ))}

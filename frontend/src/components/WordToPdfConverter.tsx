@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Loader2,
@@ -16,7 +16,10 @@ import {
   Clock
 } from 'lucide-react';
 import DropZone from '@/components/DropZone';
+import ConverterShell from '@/components/ConverterShell';
 import mammoth from 'mammoth';
+import DOMPurify from 'dompurify';
+import { formatSize } from '@/lib/utils';
 
 export default function WordToPdfConverter() {
   const [file, setFile] = useState<File | null>(null);
@@ -63,7 +66,11 @@ export default function WordToPdfConverter() {
       setProgress(60);
       const result = await mammoth.convertToHtml({ arrayBuffer });
       
-      setHtmlContent(result.value || '<p className="text-slate-400">Empty document</p>');
+      const safeHtml = DOMPurify.sanitize(result.value, { 
+        FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form'],
+        FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover']
+      });
+      setHtmlContent(safeHtml || '<p className="text-slate-400">Empty document</p>');
       setProgress(100);
       setProcessing(false);
     } catch (err: any) {
@@ -145,6 +152,9 @@ export default function WordToPdfConverter() {
   };
 
   const resetTool = () => {
+    if (successResult?.downloadUrl) {
+      URL.revokeObjectURL(successResult.downloadUrl);
+    }
     setFile(null);
     setHtmlContent('');
     setProcessing(false);
@@ -154,252 +164,93 @@ export default function WordToPdfConverter() {
     setSuccessResult(null);
   };
 
-  const formatSize = (bytes: number) => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  };
+  useEffect(() => {
+    return () => {
+      if (successResult?.downloadUrl) {
+        URL.revokeObjectURL(successResult.downloadUrl);
+      }
+    };
+  }, [successResult]);
 
   return (
-    <div className="rounded-3xl glass-panel p-6 sm:p-8 flex flex-col gap-6 relative overflow-hidden">
-      <AnimatePresence mode="wait">
-        {successResult ? (
-          /* SUCCESS SCREEN */
-          <motion.div
-            key="success"
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0 }}
-            className="flex flex-col items-center justify-center py-10 gap-6 text-center"
-          >
-            <div className="w-16 h-16 rounded-full bg-green-500/10 border border-green-500/20 flex items-center justify-center text-green-400">
-              <FileCheck className="w-8 h-8" />
-            </div>
-
-            <div>
-              <h3 className="text-xl font-bold text-white mb-2">Word Converted Successfully!</h3>
-              <p className="text-slate-400 text-xs max-w-sm leading-relaxed">
-                Your document has been compiled into a high-quality PDF in-browser. Download it below.
-              </p>
-            </div>
-
-            {/* File Info Card */}
-            <div className="w-full max-w-sm rounded-2xl bg-white/5 border border-white/5 p-4 text-left flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-accent-primary/10 border border-accent-primary/20 flex items-center justify-center text-accent-primary shrink-0">
-                <FileText className="w-5 h-5" />
-              </div>
-              <div className="min-w-0 flex-grow">
-                <div className="text-white text-xs font-bold truncate">{successResult.name}</div>
-                <div className="text-slate-400 text-[10px] mt-0.5">
-                  PDF Document · {formatSize(successResult.size)}
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3 w-full max-w-sm">
-              <a
-                href={successResult.downloadUrl}
-                download={successResult.name}
-                className="flex-grow py-3 px-5 rounded-xl font-bold bg-accent-primary hover:bg-accent-primary/95 text-white flex items-center justify-center gap-2 shadow-lg shadow-accent-primary/10 transition-all hover:scale-[1.02]"
-              >
-                <Download className="w-4 h-4" /> Download PDF
-              </a>
-              <button
-                onClick={resetTool}
-                className="py-3 px-5 rounded-xl font-bold border border-white/10 hover:border-white/20 bg-white/5 hover:bg-white/10 text-white flex items-center gap-2 transition-all"
-              >
-                <RefreshCw className="w-4 h-4" /> Reset
-              </button>
-            </div>
-          </motion.div>
-        ) : processing ? (
-          /* CONVERTING STATE SCREEN */
-          <motion.div
-            key="processing"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="flex flex-col items-center justify-center py-12 gap-5 text-center"
-          >
-            <Loader2 className="w-10 h-10 text-accent-primary animate-spin" />
-            <div>
-              <h3 className="text-white font-bold text-base mb-1">{currentTask}</h3>
-              <p className="text-slate-500 text-xs">Converting Word formatting to page layout. Do not close this tab.</p>
-            </div>
-            
-            {/* Progress Bar */}
-            <div className="w-full max-w-xs h-1.5 bg-white/5 rounded-full overflow-hidden border border-white/5">
-              <motion.div
-                className="h-full bg-gradient-to-r from-blue-500 to-indigo-600"
-                animate={{ width: `${progress}%` }}
-                transition={{ duration: 0.2 }}
-              />
-            </div>
-          </motion.div>
-        ) : !file ? (
-          /* UPLOAD ZONE */
-          <motion.div
-            key="upload"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-          >
-            <DropZone
-              onFilesSelected={handleFilesSelected}
-              multiple={false}
-              selectedFiles={[]}
-              onRemoveFile={() => {}}
+    <ConverterShell
+      files={file ? [file] : []}
+      processing={processing}
+      progress={progress}
+      currentTask={currentTask}
+      error={error}
+      successResult={successResult}
+      onReset={resetTool}
+      accept=".docx"
+      multiple={false}
+      onFilesSelected={handleFilesSelected}
+      actionButtonLabel="Convert to PDF"
+      onAction={handleConvertToPdf}
+    >
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Left Preview Column (Representing Paper Sheet) */}
+        <div className="lg:col-span-2 flex flex-col gap-4">
+          <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+            <Eye className="w-4 h-4 text-blue-400" /> Print Preview
+          </h3>
+          
+          <div className="border border-white/5 bg-black/35 rounded-2xl p-4 sm:p-8 max-h-[600px] overflow-y-auto flex justify-center">
+            {/* Simulated Paper A4 Layout */}
+            <div 
+              ref={previewRef}
+              className="w-full max-w-[800px] bg-white text-slate-900 shadow-2xl p-8 sm:p-12 rounded-lg border border-slate-200 text-left word-preview leading-relaxed"
+              dangerouslySetInnerHTML={{ __html: htmlContent }}
+              style={{
+                fontFamily: 'Inter, system-ui, sans-serif'
+              }}
             />
-          </motion.div>
-        ) : (
-          /* CONFIGURATION / PREVIEW VIEW */
-          <motion.div
-            key="configure"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-            className="grid grid-cols-1 lg:grid-cols-3 gap-8"
-          >
-            {/* Left Preview Column (Representing Paper Sheet) */}
-            <div className="lg:col-span-2 flex flex-col gap-4">
-              <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                <Eye className="w-4 h-4 text-blue-400" /> Print Preview
-              </h3>
-              
-              <div className="border border-white/5 bg-black/35 rounded-2xl p-4 sm:p-8 max-h-[600px] overflow-y-auto flex justify-center">
-                {/* Simulated Paper A4 Layout */}
-                <div 
-                  ref={previewRef}
-                  className="w-full max-w-[800px] bg-white text-slate-900 shadow-2xl p-8 sm:p-12 rounded-lg border border-slate-200 text-left word-preview leading-relaxed"
-                  dangerouslySetInnerHTML={{ __html: htmlContent }}
-                  style={{
-                    fontFamily: 'Inter, system-ui, sans-serif'
-                  }}
-                />
-              </div>
-            </div>
+          </div>
+        </div>
 
-            {/* Right Control Settings Column */}
-            <div className="flex flex-col gap-6">
-              <div>
-                <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4">
-                  Document Settings
-                </h3>
+        {/* Right Control Settings Column */}
+        <div className="flex flex-col gap-6">
+          <div>
+            <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4">
+              Document Settings
+            </h3>
 
-                <div className="flex flex-col gap-3 rounded-2xl bg-white/2 border border-white/5 p-4 text-xs text-slate-400">
-                  <div className="flex justify-between border-b border-white/5 pb-2">
-                    <span className="font-bold">File Name</span>
-                    <span className="text-white truncate max-w-[150px] font-semibold">{file.name}</span>
-                  </div>
-                  <div className="flex justify-between border-b border-white/5 pb-2">
-                    <span className="font-bold">Original Size</span>
-                    <span className="text-white font-semibold">{formatSize(file.size)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="font-bold">Paper Format</span>
-                    <span className="text-white font-semibold">US Letter (Standard)</span>
-                  </div>
+            {file && (
+              <div className="flex flex-col gap-3 rounded-2xl bg-white/2 border border-white/5 p-4 text-xs text-slate-400">
+                <div className="flex justify-between border-b border-white/5 pb-2">
+                  <span className="font-bold">File Name</span>
+                  <span className="text-white truncate max-w-[150px] font-semibold">{file.name}</span>
+                </div>
+                <div className="flex justify-between border-b border-white/5 pb-2">
+                  <span className="font-bold">Original Size</span>
+                  <span className="text-white font-semibold">{formatSize(file.size)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="font-bold">Paper Format</span>
+                  <span className="text-white font-semibold">US Letter (Standard)</span>
                 </div>
               </div>
-
-              {/* Informational Badge */}
-              <div className="mt-auto p-4 rounded-2xl border border-white/5 bg-white/2 text-slate-400 text-xs leading-relaxed flex flex-col gap-2">
-                <div className="flex items-center gap-2 text-accent-primary font-bold">
-                  <Clock className="w-4 h-4" /> 100% Secure & Client-Side
-                </div>
-                <p className="text-[11px] text-slate-400">
-                  Your document conversion is processed directly inside your browser. No files are uploaded to any server, guaranteeing complete privacy and zero data leakage.
-                </p>
-              </div>
-
-              {/* Errors Display */}
-              {error && (
-                <div className="flex items-center gap-2 p-3 rounded-xl border border-red-500/20 bg-red-500/5 text-red-400 text-xs">
-                  <AlertCircle className="w-4 h-4 shrink-0" />
-                  <span>{error}</span>
-                </div>
-              )}
-
-              {/* Control Action Buttons */}
-              <div className="border-t border-white/5 pt-4 flex items-center gap-3">
-                <button
-                  onClick={removeFile}
-                  className="py-2.5 px-4 rounded-xl border border-white/10 hover:border-white/20 bg-white/2 hover:bg-white/5 text-xs text-white font-bold transition-all shrink-0"
-                >
-                  Change File
-                </button>
-                <button
-                  onClick={handleConvertToPdf}
-                  className="flex-grow py-2.5 rounded-xl font-bold bg-accent-primary hover:bg-accent-primary/95 text-white flex items-center justify-center gap-1.5 shadow-lg shadow-accent-primary/10 transition-all text-xs"
-                >
-                  Convert to PDF <ChevronRight className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            )}
+          </div>
+        </div>
+      </div>
 
       {/* Global CSS scope for printing layout styling of Mammoth rendered output */}
       <style jsx global>{`
-        .word-preview p {
-          margin-bottom: 1rem;
-          color: #334155;
-          font-size: 0.95rem;
-          line-height: 1.6;
-        }
-        .word-preview h1,
-        .word-preview h2,
-        .word-preview h3,
-        .word-preview h4 {
-          color: #0f172a;
-          font-weight: 800;
-          margin-top: 1.5rem;
-          margin-bottom: 0.75rem;
-          line-height: 1.3;
-        }
+        .word-preview p { margin-bottom: 1rem; color: #334155; font-size: 0.95rem; line-height: 1.6; }
+        .word-preview h1, .word-preview h2, .word-preview h3, .word-preview h4 { color: #0f172a; font-weight: 800; margin-top: 1.5rem; margin-bottom: 0.75rem; line-height: 1.3; }
         .word-preview h1 { font-size: 1.75rem; border-b: 1px solid #e2e8f0; padding-bottom: 0.5rem; }
         .word-preview h2 { font-size: 1.4rem; }
         .word-preview h3 { font-size: 1.2rem; }
-        .word-preview ul, .word-preview ol {
-          margin-left: 1.5rem;
-          margin-bottom: 1rem;
-          color: #334155;
-          font-size: 0.95rem;
-        }
+        .word-preview ul, .word-preview ol { margin-left: 1.5rem; margin-bottom: 1rem; color: #334155; font-size: 0.95rem; }
         .word-preview ul { list-style-type: disc; }
         .word-preview ol { list-style-type: decimal; }
         .word-preview li { margin-bottom: 0.25rem; }
-        .word-preview table {
-          width: 100%;
-          border-collapse: collapse;
-          margin: 1.5rem 0;
-          font-size: 0.9rem;
-        }
-        .word-preview th,
-        .word-preview td {
-          border: 1px solid #cbd5e1;
-          padding: 10px 12px;
-          text-align: left;
-        }
-        .word-preview th {
-          background-color: #f1f5f9;
-          font-weight: 700;
-          color: #1e293b;
-        }
-        .word-preview a {
-          color: #2563eb;
-          text-decoration: underline;
-        }
-        .word-preview img {
-          max-width: 100%;
-          height: auto;
-          margin: 1rem 0;
-          border-radius: 0.375rem;
-        }
+        .word-preview table { width: 100%; border-collapse: collapse; margin: 1.5rem 0; font-size: 0.9rem; }
+        .word-preview th, .word-preview td { border: 1px solid #cbd5e1; padding: 10px 12px; text-align: left; }
+        .word-preview th { background-color: #f1f5f9; font-weight: 700; color: #1e293b; }
+        .word-preview a { color: #2563eb; text-decoration: underline; }
+        .word-preview img { max-width: 100%; height: auto; margin: 1rem 0; border-radius: 0.375rem; }
       `}</style>
-    </div>
+    </ConverterShell>
   );
 }

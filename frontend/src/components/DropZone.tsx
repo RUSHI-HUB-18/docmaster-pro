@@ -3,6 +3,7 @@
 import React, { useState, useRef } from 'react';
 import { UploadCloud, File, X, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { formatSize } from '@/lib/utils';
 
 interface DropZoneProps {
   onFilesSelected: (files: File[]) => void;
@@ -33,7 +34,8 @@ export default function DropZone({
       const file = filesList[i];
       
       // Extension validation
-      const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+      const dotIndex = file.name.lastIndexOf('.');
+      const ext = dotIndex > 0 ? file.name.substring(dotIndex).toLowerCase() : '';
       if (accept.split(',').map(a => a.trim()).indexOf(ext) === -1 && accept !== '*') {
         setError(`Only files with extensions ${accept} are accepted.`);
         return;
@@ -83,13 +85,6 @@ export default function DropZone({
     fileInputRef.current?.click();
   };
 
-  const formatSize = (bytes: number) => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  };
 
   return (
     <div className="w-full flex flex-col gap-4">
@@ -122,7 +117,7 @@ export default function DropZone({
         </motion.div>
 
         <h3 className="text-white font-bold text-base mb-1">
-          Drag & drop your {multiple ? 'PDFs' : 'PDF'} here
+          Drag & drop your {multiple ? 'files' : accept.replace('.', '').toUpperCase()} here
         </h3>
         <p className="text-slate-500 text-xs mb-3">
           Or click to browse from your device

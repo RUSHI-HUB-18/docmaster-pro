@@ -3,6 +3,7 @@
 import React from 'react';
 import ToolPageLayout from '@/components/ToolPageLayout';
 import dynamic from 'next/dynamic';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 const PdfToJpgConverter = dynamic(() => import('@/components/PdfToJpgConverter'), {
   ssr: false,
@@ -24,7 +25,9 @@ export default function PDFToJPGPage() {
       color="from-teal-500 to-cyan-600"
       badges={[]}
     >
-      <PdfToJpgConverter />
+      <ErrorBoundary>
+        <PdfToJpgConverter />
+      </ErrorBoundary>
     </ToolPageLayout>
   );
 }

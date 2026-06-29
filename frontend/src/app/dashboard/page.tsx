@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import type { ProcessedFile } from '@/components/DownloadCenter';
 import { API_URL } from '@/lib/config';
+import { formatSize } from '@/lib/utils';
 
 const FAVORITE_TOOLS = [
   { name: 'Merge PDF', path: '/merge', icon: Combine, color: 'from-blue-500 to-indigo-600' },

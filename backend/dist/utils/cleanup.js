@@ -7,18 +7,7 @@ exports.runCleanup = runCleanup;
 const promises_1 = __importDefault(require("fs/promises"));
 const path_1 = __importDefault(require("path"));
 const config_1 = require("../config");
-/**
- * Checks whether a path exists using async fs.
- */
-async function pathExists(p) {
-    try {
-        await promises_1.default.access(p);
-        return true;
-    }
-    catch {
-        return false;
-    }
-}
+const fs_1 = require("./fs");
 /**
  * Runs a cleanup sweep over the uploads directory.
  * Deletes any session folder (and all its contents) whose CREATION time
@@ -28,7 +17,7 @@ async function pathExists(p) {
  * Fully async — never blocks the Node.js event loop.
  */
 async function runCleanup() {
-    if (!(await pathExists(config_1.UPLOAD_DIR)))
+    if (!(await (0, fs_1.fileExists)(config_1.UPLOAD_DIR)))
         return;
     let swept = 0;
     let deleted = 0;

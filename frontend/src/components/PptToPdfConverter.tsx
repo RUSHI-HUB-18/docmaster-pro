@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Loader2,
@@ -17,7 +17,10 @@ import {
   Presentation
 } from 'lucide-react';
 import DropZone from '@/components/DropZone';
+import ConverterShell from '@/components/ConverterShell';
 import { pptxToHtml } from '@jvmr/pptx-to-html';
+import DOMPurify from 'dompurify';
+import { formatSize } from '@/lib/utils';
 
 export default function PptToPdfConverter() {
   const [file, setFile] = useState<File | null>(null);
@@ -75,8 +78,13 @@ export default function PptToPdfConverter() {
       if (!slides || slides.length === 0) {
         throw new Error('This presentation contains no valid slides.');
       }
+      
+      const safeSlides = slides.map(slide => DOMPurify.sanitize(slide, { 
+        FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form'],
+        FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover']
+      }));
 
-      setSlidesHtml(slides);
+      setSlidesHtml(safeSlides);
       setProgress(100);
       setProcessing(false);
     } catch (err: any) {
@@ -158,6 +166,9 @@ export default function PptToPdfConverter() {
   };
 
   const resetTool = () => {
+    if (successResult?.downloadUrl) {
+      URL.revokeObjectURL(successResult.downloadUrl);
+    }
     setFile(null);
     setSlidesHtml([]);
     setProcessing(false);
@@ -167,19 +178,31 @@ export default function PptToPdfConverter() {
     setSuccessResult(null);
   };
 
-  const formatSize = (bytes: number) => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  };
+  useEffect(() => {
+    return () => {
+      if (successResult?.downloadUrl) {
+        URL.revokeObjectURL(successResult.downloadUrl);
+      }
+    };
+  }, [successResult]);
 
   return (
-    <div className="rounded-3xl glass-panel p-6 sm:p-8 flex flex-col gap-6 relative overflow-hidden">
-      <AnimatePresence mode="wait">
-        {successResult ? (
-          /* SUCCESS SCREEN */
+    <ConverterShell
+      files={file ? [file] : []}
+      processing={processing}
+      progress={progress}
+      currentTask={currentTask || 'Converting PPT to PDF...'}
+      error={error}
+      successResult={successResult as any}
+      onReset={resetTool}
+      accept=".pptx"
+      multiple={false}
+      onFilesSelected={handleFilesSelected}
+      actionButtonLabel="Convert to PDF"
+      onAction={handleConvertToPdf}
+      isActionDisabled={slidesHtml.length === 0}
+      successComponent={
+        successResult && (
           <motion.div
             key="success"
             initial={{ opacity: 0, scale: 0.95 }}
@@ -227,136 +250,68 @@ export default function PptToPdfConverter() {
               </button>
             </div>
           </motion.div>
-        ) : processing ? (
-          /* CONVERTING STATE SCREEN */
-          <motion.div
-            key="processing"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="flex flex-col items-center justify-center py-12 gap-5 text-center"
-          >
-            <Loader2 className="w-10 h-10 text-accent-primary animate-spin" />
-            <div>
-              <h3 className="text-white font-bold text-base mb-1">{currentTask}</h3>
-              <p className="text-slate-500 text-xs">Generating pages locally inside the browser. Do not close this tab.</p>
+        )
+      }
+    >
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Left Preview Column (Slideshow Viewer) */}
+        <div className="lg:col-span-2 flex flex-col gap-4">
+          <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+            <Eye className="w-4 h-4 text-orange-400" /> Slides Preview ({slidesHtml.length} Slides)
+          </h3>
+          
+          {/* Slides compilation print wrapper */}
+          <div className="border border-white/5 bg-black/35 rounded-2xl p-4 sm:p-8 max-h-[600px] overflow-y-auto flex flex-col gap-6 items-center">
+            <div ref={previewRef} className="w-full flex flex-col gap-6 items-center pptx-print-wrapper">
+              {slidesHtml.map((slideHtml, idx) => (
+                <div 
+                  key={idx}
+                  className="w-full max-w-[800px] aspect-[16/9] bg-white shadow-xl rounded-lg overflow-hidden border border-slate-200 text-left relative slide-page"
+                  dangerouslySetInnerHTML={{ __html: slideHtml }}
+                />
+              ))}
             </div>
-            
-            {/* Progress Bar */}
-            <div className="w-full max-w-xs h-1.5 bg-white/5 rounded-full overflow-hidden border border-white/5">
-              <motion.div
-                className="h-full bg-gradient-to-r from-orange-500 to-red-600"
-                animate={{ width: `${progress}%` }}
-                transition={{ duration: 0.2 }}
-              />
-            </div>
-          </motion.div>
-        ) : !file ? (
-          /* UPLOAD ZONE */
-          <motion.div
-            key="upload"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-          >
-            <DropZone
-              onFilesSelected={handleFilesSelected}
-              multiple={false}
-              selectedFiles={[]}
-              onRemoveFile={() => {}}
-            />
-          </motion.div>
-        ) : (
-          /* CONFIGURATION / PREVIEW VIEW */
-          <motion.div
-            key="configure"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-            className="grid grid-cols-1 lg:grid-cols-3 gap-8"
-          >
-            {/* Left Preview Column (Slideshow Viewer) */}
-            <div className="lg:col-span-2 flex flex-col gap-4">
-              <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                <Eye className="w-4 h-4 text-orange-400" /> Slides Preview ({slidesHtml.length} Slides)
-              </h3>
-              
-              {/* Slides compilation print wrapper */}
-              <div className="border border-white/5 bg-black/35 rounded-2xl p-4 sm:p-8 max-h-[600px] overflow-y-auto flex flex-col gap-6 items-center">
-                <div ref={previewRef} className="w-full flex flex-col gap-6 items-center pptx-print-wrapper">
-                  {slidesHtml.map((slideHtml, idx) => (
-                    <div 
-                      key={idx}
-                      className="w-full max-w-[800px] aspect-[16/9] bg-white shadow-xl rounded-lg overflow-hidden border border-slate-200 text-left relative slide-page"
-                      dangerouslySetInnerHTML={{ __html: slideHtml }}
-                    />
-                  ))}
+          </div>
+        </div>
+
+        {/* Right Settings Sidebar */}
+        <div className="flex flex-col gap-6">
+          <div>
+            <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4">
+              Presentation Settings
+            </h3>
+
+            {file && (
+              <div className="flex flex-col gap-3 rounded-2xl bg-white/2 border border-white/5 p-4 text-xs text-slate-400">
+                <div className="flex justify-between border-b border-white/5 pb-2">
+                  <span className="font-bold">File Name</span>
+                  <span className="text-white truncate max-w-[150px] font-semibold">{file.name}</span>
+                </div>
+                <div className="flex justify-between border-b border-white/5 pb-2">
+                  <span className="font-bold">Original Size</span>
+                  <span className="text-white font-semibold">{formatSize(file.size)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="font-bold">Output Orientation</span>
+                  <span className="text-white font-semibold flex items-center gap-1">
+                    <Presentation className="w-3.5 h-3.5" /> Landscape
+                  </span>
                 </div>
               </div>
+            )}
+          </div>
+
+          {/* Informational Badge */}
+          <div className="mt-auto p-4 rounded-2xl border border-white/5 bg-white/2 text-slate-400 text-xs leading-relaxed flex flex-col gap-2">
+            <div className="flex items-center gap-2 text-accent-primary font-bold">
+              <Clock className="w-4 h-4" /> 100% Client-Side Processing
             </div>
-
-            {/* Right Settings Sidebar */}
-            <div className="flex flex-col gap-6">
-              <div>
-                <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4">
-                  Presentation Settings
-                </h3>
-
-                <div className="flex flex-col gap-3 rounded-2xl bg-white/2 border border-white/5 p-4 text-xs text-slate-400">
-                  <div className="flex justify-between border-b border-white/5 pb-2">
-                    <span className="font-bold">File Name</span>
-                    <span className="text-white truncate max-w-[150px] font-semibold">{file.name}</span>
-                  </div>
-                  <div className="flex justify-between border-b border-white/5 pb-2">
-                    <span className="font-bold">Original Size</span>
-                    <span className="text-white font-semibold">{formatSize(file.size)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="font-bold">Output Orientation</span>
-                    <span className="text-white font-semibold flex items-center gap-1">
-                      <Presentation className="w-3.5 h-3.5" /> Landscape
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Informational Badge */}
-              <div className="mt-auto p-4 rounded-2xl border border-white/5 bg-white/2 text-slate-400 text-xs leading-relaxed flex flex-col gap-2">
-                <div className="flex items-center gap-2 text-accent-primary font-bold">
-                  <Clock className="w-4 h-4" /> 100% Client-Side Processing
-                </div>
-                <p className="text-[11px] text-slate-400">
-                  Your PowerPoint deck is parsed and rendered entirely inside your browser. No files are uploaded to any server, offering absolute privacy.
-                </p>
-              </div>
-
-              {/* Errors Display */}
-              {error && (
-                <div className="flex items-center gap-2 p-3 rounded-xl border border-red-500/20 bg-red-500/5 text-red-400 text-xs">
-                  <AlertCircle className="w-4 h-4 shrink-0" />
-                  <span>{error}</span>
-                </div>
-              )}
-
-              {/* Control Action Buttons */}
-              <div className="border-t border-white/5 pt-4 flex items-center gap-3">
-                <button
-                  onClick={removeFile}
-                  className="py-2.5 px-4 rounded-xl border border-white/10 hover:border-white/20 bg-white/2 hover:bg-white/5 text-xs text-white font-bold transition-all shrink-0"
-                >
-                  Change File
-                </button>
-                <button
-                  onClick={handleConvertToPdf}
-                  className="flex-grow py-2.5 rounded-xl font-bold bg-accent-primary hover:bg-accent-primary/95 text-white flex items-center justify-center gap-1.5 shadow-lg shadow-accent-primary/10 transition-all text-xs"
-                >
-                  Convert to PDF <ChevronRight className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            <p className="text-[11px] text-slate-400">
+              Your PowerPoint deck is parsed and rendered entirely inside your browser. No files are uploaded to any server, offering absolute privacy.
+            </p>
+          </div>
+        </div>
+      </div>
 
       {/* Global CSS scope for printing layout styling of slides */}
       <style jsx global>{`
@@ -372,6 +327,6 @@ export default function PptToPdfConverter() {
           box-sizing: border-box;
         }
       `}</style>
-    </div>
+    </ConverterShell>
   );
 }

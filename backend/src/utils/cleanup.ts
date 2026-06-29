@@ -1,18 +1,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { UPLOAD_DIR, CLEANUP_AGE_MS } from '../config';
-
-/**
- * Checks whether a path exists using async fs.
- */
-async function pathExists(p: string): Promise<boolean> {
-  try {
-    await fs.access(p);
-    return true;
-  } catch {
-    return false;
-  }
-}
+import { fileExists } from './fs';
 
 /**
  * Runs a cleanup sweep over the uploads directory.
@@ -23,7 +12,7 @@ async function pathExists(p: string): Promise<boolean> {
  * Fully async — never blocks the Node.js event loop.
  */
 export async function runCleanup(): Promise<void> {
-  if (!(await pathExists(UPLOAD_DIR))) return;
+  if (!(await fileExists(UPLOAD_DIR))) return;
 
   let swept = 0;
   let deleted = 0;

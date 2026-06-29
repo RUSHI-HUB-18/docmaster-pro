@@ -70,7 +70,7 @@ app.use((0, helmet_1.default)({
 // In production, replace '*' with your exact frontend domain, e.g.:
 // origin: process.env.FRONTEND_URL || 'https://yourdomain.com'
 app.use((0, cors_1.default)({
-    origin: process.env.FRONTEND_URL || '*',
+    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
     methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type'],
     exposedHeaders: ['Content-Disposition'],

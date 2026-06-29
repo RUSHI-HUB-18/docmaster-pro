@@ -17,6 +17,7 @@ import {
 import DropZone from '@/components/DropZone';
 import ToolPageLayout from '@/components/ToolPageLayout';
 import { API_URL } from '@/lib/config';
+import { formatSize } from '@/lib/utils';
 
 export default function MergePage() {
   const [files, setFiles] = useState<File[]>([]);
@@ -197,6 +198,7 @@ export default function MergePage() {
             multiple={true}
             selectedFiles={files}
             onRemoveFile={removeFile}
+            accept=".pdf"
           />
         ) : (
           /* Arrange & Manage State */

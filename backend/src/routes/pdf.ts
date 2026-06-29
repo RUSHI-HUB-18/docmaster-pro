@@ -6,6 +6,7 @@ import { upload, checkPdfMagicBytes, assignUploadId } from '../middleware/upload
 import { validateCompress, validateSplit, validateRotate } from '../middleware/validation';
 import { PdfService } from '../services/pdfService';
 import { UPLOAD_DIR } from '../config';
+import { fileExists } from '../utils/fs';
 
 const router = Router();
 
@@ -76,15 +77,6 @@ const getOutputConfig = (uploadId: string, baseName: string, ext: string) => {
   return { outPath, outFilename, downloadUrl };
 };
 
-/** Async file existence check */
-async function fileExists(filePath: string): Promise<boolean> {
-  try {
-    await fs.access(filePath);
-    return true;
-  } catch {
-    return false;
-  }
-}
 
 // ─── 1. PDF MERGE ─────────────────────────────────────────────────────────────
 router.post(
@@ -134,8 +126,8 @@ router.post(
         message: 'PDFs merged successfully!',
       });
     } catch (err: any) {
-      console.error('[Merge] Error:', err.message);
-      return res.status(500).json({ success: false, error: err.message || 'Error during PDF merge.' });
+      console.error('[Merge] Error:', err.message, err.stack);
+      return res.status(500).json({ success: false, error: 'An error occurred during PDF merge. Please try again.' });
     }
   }
 );
@@ -159,12 +151,8 @@ router.post(
       }
 
       let ranges: { start: number; end: number }[] = [];
-      if (mode === 'ranges' && req.body.ranges) {
-        try {
-          ranges = JSON.parse(req.body.ranges);
-        } catch {
-          return res.status(400).json({ success: false, error: 'Invalid ranges format.' });
-        }
+      if (mode === 'ranges' && req.body.parsedRanges) {
+        ranges = req.body.parsedRanges;
       }
 
       const userUploadDir = path.join(UPLOAD_DIR, path.basename(uploadId));
@@ -181,8 +169,8 @@ router.post(
         message: 'PDF split successfully!',
       });
     } catch (err: any) {
-      console.error('[Split] Error:', err.message);
-      return res.status(500).json({ success: false, error: err.message || 'Error during PDF split.' });
+      console.error('[Split] Error:', err.message, err.stack);
+      return res.status(500).json({ success: false, error: 'An error occurred during PDF split. Please try again.' });
     }
   }
 );
@@ -218,8 +206,8 @@ router.post(
         message: 'PDF compressed successfully!',
       });
     } catch (err: any) {
-      console.error('[Compress] Error:', err.message);
-      return res.status(500).json({ success: false, error: err.message || 'Error during PDF compression.' });
+      console.error('[Compress] Error:', err.message, err.stack);
+      return res.status(500).json({ success: false, error: 'An error occurred during PDF compression. Please try again.' });
     }
   }
 );
@@ -243,8 +231,8 @@ router.post(
 
       let rotations: { pageIndex: number; degrees: number }[] | { degrees: number };
 
-      if (req.body.rotations) {
-        rotations = JSON.parse(req.body.rotations);
+      if (req.body.parsedRotations) {
+        rotations = req.body.parsedRotations;
       } else {
         rotations = { degrees: Number(req.body.degrees) };
       }
@@ -263,8 +251,8 @@ router.post(
         message: 'PDF rotated successfully!',
       });
     } catch (err: any) {
-      console.error('[Rotate] Error:', err.message);
-      return res.status(500).json({ success: false, error: err.message || 'Error during PDF rotation.' });
+      console.error('[Rotate] Error:', err.message, err.stack);
+      return res.status(500).json({ success: false, error: 'An error occurred during PDF rotation. Please try again.' });
     }
   }
 );

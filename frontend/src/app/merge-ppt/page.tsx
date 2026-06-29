@@ -3,6 +3,7 @@
 import React from 'react';
 import ToolPageLayout from '@/components/ToolPageLayout';
 import dynamic from 'next/dynamic';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 const MergePptConverter = dynamic(() => import('@/components/MergePptConverter'), {
   ssr: false,
@@ -24,7 +25,9 @@ export default function MergePPTPage() {
       color="from-orange-500 to-amber-600"
       badges={[]}
     >
-      <MergePptConverter />
+      <ErrorBoundary>
+        <MergePptConverter />
+      </ErrorBoundary>
     </ToolPageLayout>
   );
 }

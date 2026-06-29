@@ -61,7 +61,7 @@ function validateSplit(req, res, next) {
                 return badRequest(res, `Range start (${item.start}) cannot exceed end (${item.end}).`);
             }
         }
-        req.body.ranges = JSON.stringify(parsed); // re-serialize validated data
+        req.body.parsedRanges = parsed; // Use parsed data directly
     }
     return next();
 }
@@ -99,7 +99,7 @@ function validateRotate(req, res, next) {
                 return badRequest(res, `Each rotation must have a non-negative integer "pageIndex" and a "degrees" value in [${[...ALLOWED_DEGREES].join(', ')}].`);
             }
         }
-        req.body.rotations = JSON.stringify(parsed);
+        req.body.parsedRotations = parsed; // Use parsed data directly
         return next();
     }
     return badRequest(res, 'Either "rotations" (array) or "degrees" (number) is required.');

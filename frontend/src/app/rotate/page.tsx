@@ -15,6 +15,7 @@ import DropZone from '@/components/DropZone';
 import ToolPageLayout from '@/components/ToolPageLayout';
 import dynamic from 'next/dynamic';
 import { API_URL } from '@/lib/config';
+import { formatSize } from '@/lib/utils';
 
 const PdfPreview = dynamic(() => import('@/components/PdfPreview'), {
   ssr: false,
@@ -192,7 +193,7 @@ export default function RotatePage() {
           </div>
         ) : !file ? (
           /* Upload State */
-          <DropZone
+          <DropZone accept=".pdf"
             onFilesSelected={handleFilesSelected}
             multiple={false}
             selectedFiles={[]}

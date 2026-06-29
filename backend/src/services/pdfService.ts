@@ -2,7 +2,12 @@ import { PDFDocument, degrees } from 'pdf-lib';
 import fs from 'fs/promises';
 import path from 'path';
 import JSZip from 'jszip';
+import { execFile } from 'child_process';
+import util from 'util';
 import { MAX_PAGE_COUNT, PROCESSING_TIMEOUT_MS } from '../config';
+import { fileExists } from '../utils/fs';
+
+const execFileAsync = util.promisify(execFile);
 
 // ─── Processing timeout wrapper ───────────────────────────────────────────────
 /**
@@ -50,16 +55,7 @@ function assertPageLimit(doc: PDFDocument, filename: string): void {
   }
 }
 
-// ─── Async file existence check ───────────────────────────────────────────────
-async function fileExists(filePath: string): Promise<boolean> {
-  try {
-    await fs.access(filePath);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
+// Removed local fileExists in favor of shared util
 // ─── PdfService ───────────────────────────────────────────────────────────────
 export class PdfService {
   /**
@@ -222,14 +218,39 @@ export class PdfService {
         doc.setProducer('');
         doc.setCreator('');
 
-        // Suppress unused-variable warning — level is intentionally kept for
-        // future Ghostscript integration where it controls compression aggressiveness.
-        void level;
+        // Ghostscript compression levels mapping
+        const gsLevels = {
+          basic: '/printer',  // ~300 dpi
+          medium: '/ebook',   // ~150 dpi
+          strong: '/screen'   // ~72 dpi
+        };
+        const gsSetting = gsLevels[level] || '/ebook';
 
-        const compressedBytes = await doc.save({ useObjectStreams: true });
-        await fs.writeFile(outputFilePath, compressedBytes);
+        try {
+          // Attempt Ghostscript compression (Unix/Linux typically uses 'gs', Windows 'gswin64c' or 'gswin32c')
+          // We will try 'gs' first, and catch if it fails.
+          const gsCommand = process.platform === 'win32' ? 'gswin64c' : 'gs';
+          
+          await execFileAsync(gsCommand, [
+            '-sDEVICE=pdfwrite',
+            '-dCompatibilityLevel=1.4',
+            `-dPDFSETTINGS=${gsSetting}`,
+            '-dNOPAUSE',
+            '-dQUIET',
+            '-dBATCH',
+            `-sOutputFile=${outputFilePath}`,
+            filePath
+          ]);
+          
+        } catch (gsError) {
+          console.warn('[Compress] Ghostscript failed or not installed, falling back to pdf-lib.', (gsError as Error).message);
+          
+          // Fallback to pdf-lib if gs is not available
+          const compressedBytes = await doc.save({ useObjectStreams: true });
+          await fs.writeFile(outputFilePath, compressedBytes);
+        }
 
-        const compressedSize = compressedBytes.length; // Avoid extra stat call
+        const compressedSize = (await fs.stat(outputFilePath)).size;
         return { originalSize, compressedSize };
       })()
     );

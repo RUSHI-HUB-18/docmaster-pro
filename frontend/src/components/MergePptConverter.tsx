@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Loader2,
@@ -18,7 +18,9 @@ import {
   Plus
 } from 'lucide-react';
 import DropZone from '@/components/DropZone';
+import ConverterShell from '@/components/ConverterShell';
 import JSZip from 'jszip';
+import { formatSize } from '@/lib/utils';
 
 export default function MergePptConverter() {
   const [files, setFiles] = useState<File[]>([]);
@@ -60,6 +62,9 @@ export default function MergePptConverter() {
   };
 
   const resetTool = () => {
+    if (successResult?.downloadUrl) {
+      URL.revokeObjectURL(successResult.downloadUrl);
+    }
     setFiles([]);
     setProcessing(false);
     setProgress(0);
@@ -105,7 +110,7 @@ export default function MergePptConverter() {
       const baseZip = await JSZip.loadAsync(baseBuffer);
 
       // Determine current number of slides in base presentation
-      let baseSlideNames: string[] = [];
+      const baseSlideNames: string[] = [];
       baseZip.forEach((relativePath) => {
         const match = relativePath.match(/^ppt\/slides\/slide(\d+)\.xml$/);
         if (match) {
@@ -287,19 +292,31 @@ export default function MergePptConverter() {
     }
   };
 
-  const formatSize = (bytes: number) => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  };
+  useEffect(() => {
+    return () => {
+      if (successResult?.downloadUrl) {
+        URL.revokeObjectURL(successResult.downloadUrl);
+      }
+    };
+  }, [successResult]);
 
   return (
-    <div className="rounded-3xl glass-panel p-6 sm:p-8 flex flex-col gap-6 relative overflow-hidden">
-      <AnimatePresence mode="wait">
-        {successResult ? (
-          /* SUCCESS SCREEN */
+    <ConverterShell
+      files={files}
+      processing={processing}
+      progress={progress}
+      currentTask={currentTask || 'Combining layout architectures...'}
+      error={error}
+      successResult={successResult as any}
+      onReset={resetTool}
+      accept=".pptx"
+      multiple={true}
+      onFilesSelected={handleFilesSelected}
+      actionButtonLabel="Merge PPT"
+      onAction={handleMerge}
+      isActionDisabled={files.length < 2}
+      successComponent={
+        successResult && (
           <motion.div
             key="success"
             initial={{ opacity: 0, scale: 0.95 }}
@@ -347,160 +364,80 @@ export default function MergePptConverter() {
               </button>
             </div>
           </motion.div>
-        ) : processing ? (
-          /* MERGING STATE SCREEN */
-          <motion.div
-            key="processing"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="flex flex-col items-center justify-center py-12 gap-5 text-center"
+        )
+      }
+    >
+      <div className="flex items-center justify-between border-b border-white/5 pb-4">
+        <h3 className="text-white font-bold text-base">Files to Combine</h3>
+        <button
+          onClick={resetTool}
+          className="text-xs text-slate-500 hover:text-white transition-all font-semibold"
+        >
+          Clear All
+        </button>
+      </div>
+
+      {/* File List Grid */}
+      <div className="flex flex-col gap-3">
+        {files.map((f, idx) => (
+          <div
+            key={idx}
+            className="p-4 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-between gap-3 text-xs"
           >
-            <Loader2 className="w-10 h-10 text-accent-primary animate-spin" />
-            <div>
-              <h3 className="text-white font-bold text-base mb-1">{currentTask}</h3>
-              <p className="text-slate-500 text-xs">Combining layout architectures and compiling. Do not close this tab.</p>
+            <div className="flex items-center gap-3 min-w-0">
+              <span className="w-6 h-6 rounded-lg bg-orange-500/10 border border-orange-500/20 text-orange-400 flex items-center justify-center font-bold text-[10px]">
+                {idx + 1}
+              </span>
+              <Presentation className="w-4 h-4 text-slate-400 shrink-0" />
+              <span className="text-white font-bold truncate max-w-[200px] sm:max-w-md">
+                {f.name}
+              </span>
+              <span className="text-[10px] text-slate-500 shrink-0">
+                ({formatSize(f.size)})
+              </span>
             </div>
-            
-            {/* Progress Bar */}
-            <div className="w-full max-w-xs h-1.5 bg-white/5 rounded-full overflow-hidden border border-white/5">
-              <motion.div
-                className="h-full bg-gradient-to-r from-orange-500 to-amber-600"
-                animate={{ width: `${progress}%` }}
-                transition={{ duration: 0.2 }}
-              />
-            </div>
-          </motion.div>
-        ) : files.length === 0 ? (
-          /* UPLOAD ZONE */
-          <motion.div
-            key="upload"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-          >
-            <DropZone
-              onFilesSelected={handleFilesSelected}
-              multiple={true}
-              selectedFiles={[]}
-              onRemoveFile={() => {}}
-            />
-          </motion.div>
-        ) : (
-          /* FILE LIST WORKSPACE */
-          <motion.div
-            key="workspace"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-            className="flex flex-col gap-6"
-          >
-            <div className="flex items-center justify-between border-b border-white/5 pb-4">
-              <h3 className="text-white font-bold text-base">Files to Combine</h3>
+
+            <div className="flex items-center gap-1.5 shrink-0">
               <button
-                onClick={resetTool}
-                className="text-xs text-slate-500 hover:text-white transition-all font-semibold"
+                onClick={() => moveFile(idx, 'up')}
+                disabled={idx === 0}
+                className="p-1.5 rounded-lg bg-white/2 border border-white/5 text-slate-500 hover:text-white disabled:opacity-30 disabled:hover:text-slate-500 transition-all"
               >
-                Clear All
+                <ArrowUp className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={() => moveFile(idx, 'down')}
+                disabled={idx === files.length - 1}
+                className="p-1.5 rounded-lg bg-white/2 border border-white/5 text-slate-500 hover:text-white disabled:opacity-30 disabled:hover:text-slate-500 transition-all"
+              >
+                <ArrowDown className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={() => removeFile(idx)}
+                className="p-1.5 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 transition-all"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
               </button>
             </div>
+          </div>
+        ))}
+      </div>
 
-            {/* File List Grid */}
-            <div className="flex flex-col gap-3">
-              {files.map((f, idx) => (
-                <div
-                  key={idx}
-                  className="p-4 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-between gap-3 text-xs"
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <span className="w-6 h-6 rounded-lg bg-orange-500/10 border border-orange-500/20 text-orange-400 flex items-center justify-center font-bold text-[10px]">
-                      {idx + 1}
-                    </span>
-                    <Presentation className="w-4 h-4 text-slate-400 shrink-0" />
-                    <span className="text-white font-bold truncate max-w-[200px] sm:max-w-md">
-                      {f.name}
-                    </span>
-                    <span className="text-[10px] text-slate-500 shrink-0">
-                      ({formatSize(f.size)})
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    <button
-                      onClick={() => moveFile(idx, 'up')}
-                      disabled={idx === 0}
-                      className="p-1.5 rounded-lg bg-white/2 border border-white/5 text-slate-500 hover:text-white disabled:opacity-30 disabled:hover:text-slate-500 transition-all"
-                    >
-                      <ArrowUp className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      onClick={() => moveFile(idx, 'down')}
-                      disabled={idx === files.length - 1}
-                      className="p-1.5 rounded-lg bg-white/2 border border-white/5 text-slate-500 hover:text-white disabled:opacity-30 disabled:hover:text-slate-500 transition-all"
-                    >
-                      <ArrowDown className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      onClick={() => removeFile(idx)}
-                      className="p-1.5 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 transition-all"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Add More Files Trigger */}
-            <div className="flex justify-center border-t border-white/5 pt-4">
-              <label className="cursor-pointer py-2 px-4 rounded-xl border border-white/10 hover:border-white/20 bg-white/2 hover:bg-white/5 text-xs text-white font-bold flex items-center gap-1.5 transition-all">
-                <Plus className="w-4 h-4" /> Add More Presentations
-                <input
-                  type="file"
-                  multiple
-                  accept=".pptx"
-                  className="hidden"
-                  onChange={(e) => {
-                    if (e.target.files) handleFilesSelected(Array.from(e.target.files));
-                  }}
-                />
-              </label>
-            </div>
-
-            {/* Footer Control Info & Actions */}
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-white/5 pt-4 mt-4">
-              <div className="flex items-center gap-2 text-slate-500 text-[10px] sm:text-xs">
-                <Clock className="w-4 h-4 text-slate-400 shrink-0" />
-                <span>Processes locally on your device · 100% Secure</span>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex items-center gap-3 w-full sm:w-auto">
-                <button
-                  onClick={resetTool}
-                  className="flex-grow sm:flex-none py-2.5 px-4 rounded-xl border border-white/10 hover:border-white/20 bg-white/2 hover:bg-white/5 text-xs text-white font-bold transition-all shrink-0"
-                >
-                  Clear all
-                </button>
-                <button
-                  onClick={handleMerge}
-                  className="flex-grow sm:flex-none py-2.5 px-6 rounded-xl font-bold bg-accent-primary hover:bg-accent-primary/95 text-white flex items-center justify-center gap-1.5 shadow-lg shadow-accent-primary/10 transition-all text-xs"
-                >
-                  Merge PPT <ChevronRight className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-
-            {/* Errors Display */}
-            {error && (
-              <div className="flex items-center gap-2 p-3 rounded-xl border border-red-500/20 bg-red-500/5 text-red-400 text-xs">
-                <AlertCircle className="w-4 h-4 shrink-0" />
-                <span>{error}</span>
-              </div>
-            )}
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
+      {/* Add More Files Trigger */}
+      <div className="flex justify-center border-t border-white/5 pt-4">
+        <label className="cursor-pointer py-2 px-4 rounded-xl border border-white/10 hover:border-white/20 bg-white/2 hover:bg-white/5 text-xs text-white font-bold flex items-center gap-1.5 transition-all">
+          <Plus className="w-4 h-4" /> Add More Presentations
+          <input
+            type="file"
+            multiple
+            accept=".pptx"
+            className="hidden"
+            onChange={(e) => {
+              if (e.target.files) handleFilesSelected(Array.from(e.target.files));
+            }}
+          />
+        </label>
+      </div>
+    </ConverterShell>
   );
 }

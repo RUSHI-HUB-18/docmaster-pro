@@ -3,6 +3,7 @@
 import React from 'react';
 import ToolPageLayout from '@/components/ToolPageLayout';
 import dynamic from 'next/dynamic';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 const UnlockPdfConverter = dynamic(() => import('@/components/UnlockPdfConverter'), {
   ssr: false,
@@ -24,7 +25,9 @@ export default function UnlockPDFPage() {
       color="from-emerald-500 to-green-600"
       badges={['Popular']}
     >
-      <UnlockPdfConverter />
+      <ErrorBoundary>
+        <UnlockPdfConverter />
+      </ErrorBoundary>
     </ToolPageLayout>
   );
 }

@@ -3,6 +3,7 @@
 import React from 'react';
 import ToolPageLayout from '@/components/ToolPageLayout';
 import dynamic from 'next/dynamic';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 const WordToPdfConverter = dynamic(() => import('@/components/WordToPdfConverter'), {
   ssr: false,
@@ -24,7 +25,9 @@ export default function WordToPDFPage() {
       color="from-indigo-500 to-blue-600"
       badges={['Popular']}
     >
-      <WordToPdfConverter />
+      <ErrorBoundary>
+        <WordToPdfConverter />
+      </ErrorBoundary>
     </ToolPageLayout>
   );
 }

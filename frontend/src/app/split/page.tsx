@@ -219,7 +219,7 @@ export default function SplitPage() {
           </div>
         ) : !file ? (
           /* Upload State */
-          <DropZone
+          <DropZone accept=".pdf"
             onFilesSelected={handleFilesSelected}
             multiple={false}
             selectedFiles={[]}

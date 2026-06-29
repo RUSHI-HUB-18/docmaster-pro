@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Loader2,
@@ -16,7 +16,9 @@ import {
   ChevronRight
 } from 'lucide-react';
 import DropZone from '@/components/DropZone';
+import ConverterShell from '@/components/ConverterShell';
 import JSZip from 'jszip';
+import { formatSize } from '@/lib/utils';
 
 export default function CompressPptConverter() {
   const [file, setFile] = useState<File | null>(null);
@@ -45,6 +47,9 @@ export default function CompressPptConverter() {
   };
 
   const resetTool = () => {
+    if (successResult?.downloadUrl) {
+      URL.revokeObjectURL(successResult.downloadUrl);
+    }
     setFile(null);
     setLevel('medium');
     setProcessing(false);
@@ -201,19 +206,30 @@ export default function CompressPptConverter() {
     }
   };
 
-  const formatSize = (bytes: number) => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  };
+  useEffect(() => {
+    return () => {
+      if (successResult?.downloadUrl) {
+        URL.revokeObjectURL(successResult.downloadUrl);
+      }
+    };
+  }, [successResult]);
 
   return (
-    <div className="rounded-3xl glass-panel p-6 sm:p-8 flex flex-col gap-6 relative overflow-hidden">
-      <AnimatePresence mode="wait">
-        {successResult ? (
-          /* SUCCESS SCREEN */
+    <ConverterShell
+      files={file ? [file] : []}
+      processing={processing}
+      progress={progress}
+      currentTask={currentTask}
+      error={error}
+      successResult={successResult as any} // mapping isn't perfect, but we override it below
+      onReset={resetTool}
+      accept=".pptx"
+      multiple={false}
+      onFilesSelected={handleFilesSelected}
+      actionButtonLabel="Compress Presentation"
+      onAction={handleCompress}
+      successComponent={
+        successResult && (
           <motion.div
             key="success"
             initial={{ opacity: 0, scale: 0.95 }}
@@ -262,147 +278,78 @@ export default function CompressPptConverter() {
               </button>
             </div>
           </motion.div>
-        ) : processing ? (
-          /* COMPRESSING STATE SCREEN */
-          <motion.div
-            key="processing"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="flex flex-col items-center justify-center py-12 gap-5 text-center"
-          >
-            <Loader2 className="w-10 h-10 text-accent-primary animate-spin" />
-            <div>
-              <h3 className="text-white font-bold text-base mb-1">{currentTask}</h3>
-              <p className="text-slate-500 text-xs">Unpacking PowerPoint and scaling images in-browser. Do not close this tab.</p>
+        )
+      }
+    >
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Left Info Column */}
+        <div className="lg:col-span-2 flex flex-col gap-4">
+          <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">
+            Presentation Details
+          </h3>
+          
+          <div className="border border-white/5 bg-black/25 rounded-3xl p-8 flex flex-col items-center justify-center gap-4 min-h-[300px] text-center">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-rose-500 to-pink-600 flex items-center justify-center text-white shadow-xl shadow-rose-500/10">
+              <Presentation className="w-8 h-8" />
             </div>
-            
-            {/* Progress Bar */}
-            <div className="w-full max-w-xs h-1.5 bg-white/5 rounded-full overflow-hidden border border-white/5">
-              <motion.div
-                className="h-full bg-gradient-to-r from-rose-500 to-pink-600"
-                animate={{ width: `${progress}%` }}
-                transition={{ duration: 0.2 }}
-              />
-            </div>
-            <span className="text-slate-400 font-extrabold text-xs">{progress}%</span>
-          </motion.div>
-        ) : !file ? (
-          /* UPLOAD ZONE */
-          <motion.div
-            key="upload"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-          >
-            <DropZone
-              onFilesSelected={handleFilesSelected}
-              multiple={false}
-              selectedFiles={[]}
-              onRemoveFile={() => {}}
-            />
-          </motion.div>
-        ) : (
-          /* CONFIGURATION VIEW */
-          <motion.div
-            key="configure"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-            className="grid grid-cols-1 lg:grid-cols-3 gap-8"
-          >
-            {/* Left Info Column */}
-            <div className="lg:col-span-2 flex flex-col gap-4">
-              <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">
-                Presentation Details
-              </h3>
-              
-              <div className="border border-white/5 bg-black/25 rounded-3xl p-8 flex flex-col items-center justify-center gap-4 min-h-[300px] text-center">
-                <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-rose-500 to-pink-600 flex items-center justify-center text-white shadow-xl shadow-rose-500/10">
-                  <Presentation className="w-8 h-8" />
-                </div>
-                <div>
-                  <h4 className="text-white font-extrabold text-base mb-1.5">{file.name}</h4>
-                  <div className="flex items-center justify-center gap-3 text-slate-400 text-xs font-semibold">
-                    <span>PowerPoint Slideshow</span>
-                    <span>·</span>
-                    <span>{formatSize(file.size)}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Right Settings Column */}
-            <div className="flex flex-col gap-6">
+            {file && (
               <div>
-                <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4 flex items-center gap-1.5">
-                  <Sliders className="w-4 h-4 text-accent-secondary" /> Presets
-                </h3>
-
-                <div className="flex flex-col gap-2.5">
-                  {[
-                    { id: 'basic', title: 'Basic Compression', desc: 'Slightly resizes large images to 1600px. Standard quality.', icon: Clock },
-                    { id: 'medium', title: 'Recommended (Medium)', desc: 'Optimizes images to 1200px. Highly recommended preset.', icon: Zap },
-                    { id: 'strong', title: 'Strong Compression', desc: 'Resizes all assets to 800px. Maximum size reduction.', icon: TrendingDown }
-                  ].map((preset) => (
-                    <button
-                      key={preset.id}
-                      onClick={() => setLevel(preset.id as any)}
-                      className={`p-3 rounded-2xl border text-left flex flex-col gap-1 transition-all ${
-                        level === preset.id
-                          ? 'bg-accent-secondary/10 border-accent-secondary/30 text-white'
-                          : 'bg-white/2 border-white/5 hover:border-white/10 text-slate-400 hover:text-white'
-                      }`}
-                    >
-                      <span className="text-xs font-bold text-white flex items-center gap-1.5">
-                        <preset.icon className={`w-3.5 h-3.5 ${level === preset.id ? 'text-accent-secondary' : 'text-slate-500'}`} />
-                        {preset.title}
-                      </span>
-                      <span className="text-[10px] text-slate-500 leading-normal pl-5">
-                        {preset.desc}
-                      </span>
-                    </button>
-                  ))}
+                <h4 className="text-white font-extrabold text-base mb-1.5">{file.name}</h4>
+                <div className="flex items-center justify-center gap-3 text-slate-400 text-xs font-semibold">
+                  <span>PowerPoint Slideshow</span>
+                  <span>·</span>
+                  <span>{formatSize(file.size)}</span>
                 </div>
               </div>
+            )}
+          </div>
+        </div>
 
-              {/* Informational Badge */}
-              <div className="mt-auto p-4 rounded-2xl border border-white/5 bg-white/2 text-slate-400 text-xs leading-relaxed flex flex-col gap-2">
-                <div className="flex items-center gap-2 text-accent-secondary font-bold">
-                  <Zap className="w-4 h-4 text-accent-secondary" /> Offline Compression
-                </div>
-                <p className="text-[11px] text-slate-400">
-                  By compressing image assets locally in your browser, your files are never uploaded or shared with any third party, offering high privacy speed.
-                </p>
-              </div>
+        {/* Right Settings Column */}
+        <div className="flex flex-col gap-6">
+          <div>
+            <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4 flex items-center gap-1.5">
+              <Sliders className="w-4 h-4 text-accent-secondary" /> Presets
+            </h3>
 
-              {/* Errors Display */}
-              {error && (
-                <div className="flex items-center gap-2 p-3 rounded-xl border border-red-500/20 bg-red-500/5 text-red-400 text-xs">
-                  <AlertCircle className="w-4 h-4 shrink-0" />
-                  <span>{error}</span>
-                </div>
-              )}
-
-              {/* Control Action Buttons */}
-              <div className="border-t border-white/5 pt-4 flex items-center gap-3">
+            <div className="flex flex-col gap-2.5">
+              {[
+                { id: 'basic', title: 'Basic Compression', desc: 'Slightly resizes large images to 1600px. Standard quality.', icon: Clock },
+                { id: 'medium', title: 'Recommended (Medium)', desc: 'Optimizes images to 1200px. Highly recommended preset.', icon: Zap },
+                { id: 'strong', title: 'Strong Compression', desc: 'Resizes all assets to 800px. Maximum size reduction.', icon: TrendingDown }
+              ].map((preset) => (
                 <button
-                  onClick={removeFile}
-                  className="py-2.5 px-4 rounded-xl border border-white/10 hover:border-white/20 bg-white/2 hover:bg-white/5 text-xs text-white font-bold transition-all shrink-0"
+                  key={preset.id}
+                  onClick={() => setLevel(preset.id as any)}
+                  className={`p-3 rounded-2xl border text-left flex flex-col gap-1 transition-all ${
+                    level === preset.id
+                      ? 'bg-accent-secondary/10 border-accent-secondary/30 text-white'
+                      : 'bg-white/2 border-white/5 hover:border-white/10 text-slate-400 hover:text-white'
+                  }`}
                 >
-                  Change File
+                  <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                    <preset.icon className={`w-3.5 h-3.5 ${level === preset.id ? 'text-accent-secondary' : 'text-slate-500'}`} />
+                    {preset.title}
+                  </span>
+                  <span className="text-[10px] text-slate-500 leading-normal pl-5">
+                    {preset.desc}
+                  </span>
                 </button>
-                <button
-                  onClick={handleCompress}
-                  className="flex-grow py-2.5 rounded-xl font-bold bg-accent-secondary hover:bg-accent-secondary/95 text-white flex items-center justify-center gap-1.5 shadow-lg shadow-accent-secondary/10 transition-all text-xs"
-                >
-                  Compress Presentation <ChevronRight className="w-4 h-4" />
-                </button>
-              </div>
+              ))}
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
+          </div>
+
+          {/* Informational Badge */}
+          <div className="mt-auto p-4 rounded-2xl border border-white/5 bg-white/2 text-slate-400 text-xs leading-relaxed flex flex-col gap-2">
+            <div className="flex items-center gap-2 text-accent-secondary font-bold">
+              <Zap className="w-4 h-4 text-accent-secondary" /> Offline Compression
+            </div>
+            <p className="text-[11px] text-slate-400">
+              By compressing image assets locally in your browser, your files are never uploaded or shared with any third party, offering high privacy speed.
+            </p>
+          </div>
+        </div>
+      </div>
+    </ConverterShell>
   );
 }

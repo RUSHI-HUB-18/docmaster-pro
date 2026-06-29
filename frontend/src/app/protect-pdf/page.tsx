@@ -3,6 +3,7 @@
 import React from 'react';
 import ToolPageLayout from '@/components/ToolPageLayout';
 import dynamic from 'next/dynamic';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 const ProtectPdfConverter = dynamic(() => import('@/components/ProtectPdfConverter'), {
   ssr: false,
@@ -24,7 +25,9 @@ export default function ProtectPDFPage() {
       color="from-red-500 to-rose-600"
       badges={[]}
     >
-      <ProtectPdfConverter />
+      <ErrorBoundary>
+        <ProtectPdfConverter />
+      </ErrorBoundary>
     </ToolPageLayout>
   );
 }

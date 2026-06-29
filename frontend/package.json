@@ -12,10 +12,8 @@
     "@jvmr/pptx-to-html": "^1.0.1",
     "@pdfsmaller/pdf-decrypt": "^1.0.1",
     "@pdfsmaller/pdf-encrypt": "^1.0.2",
-    "@react-three/drei": "^10.7.7",
-    "@react-three/fiber": "^9.6.1",
-    "@types/three": "^0.184.1",
     "docx": "^9.7.1",
+    "dompurify": "^3.4.11",
     "framer-motion": "^12.40.0",
     "html2pdf.js": "^0.14.0",
     "jszip": "^3.10.1",
@@ -25,11 +23,11 @@
     "pdf-lib": "^1.17.1",
     "pdfjs-dist": "^6.0.227",
     "react": "19.2.4",
-    "react-dom": "19.2.4",
-    "three": "^0.184.0"
+    "react-dom": "19.2.4"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/dompurify": "^3.0.5",
     "@types/jszip": "^3.4.0",
     "@types/node": "^20",
     "@types/react": "^19",

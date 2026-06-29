@@ -73,7 +73,7 @@ export function validateSplit(req: Request, res: Response, next: NextFunction) {
       }
     }
 
-    req.body.ranges = JSON.stringify(parsed); // re-serialize validated data
+    req.body.parsedRanges = parsed; // Use parsed data directly
   }
 
   return next();
@@ -123,7 +123,7 @@ export function validateRotate(req: Request, res: Response, next: NextFunction) 
       }
     }
 
-    req.body.rotations = JSON.stringify(parsed);
+    req.body.parsedRotations = parsed; // Use parsed data directly
     return next();
   }
 

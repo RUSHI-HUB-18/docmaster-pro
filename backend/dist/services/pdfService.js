@@ -8,7 +8,11 @@ const pdf_lib_1 = require("pdf-lib");
 const promises_1 = __importDefault(require("fs/promises"));
 const path_1 = __importDefault(require("path"));
 const jszip_1 = __importDefault(require("jszip"));
+const child_process_1 = require("child_process");
+const util_1 = __importDefault(require("util"));
 const config_1 = require("../config");
+const fs_1 = require("../utils/fs");
+const execFileAsync = util_1.default.promisify(child_process_1.execFile);
 // ─── Processing timeout wrapper ───────────────────────────────────────────────
 /**
  * Races a promise against a hard timeout.
@@ -41,16 +45,7 @@ function assertPageLimit(doc, filename) {
             `Please split the file before uploading.`);
     }
 }
-// ─── Async file existence check ───────────────────────────────────────────────
-async function fileExists(filePath) {
-    try {
-        await promises_1.default.access(filePath);
-        return true;
-    }
-    catch {
-        return false;
-    }
-}
+// Removed local fileExists in favor of shared util
 // ─── PdfService ───────────────────────────────────────────────────────────────
 class PdfService {
     /**
@@ -61,7 +56,7 @@ class PdfService {
         return withTimeout((async () => {
             // Read all files from disk in parallel (I/O bound)
             const readResults = await Promise.all(filePaths.map(async (filePath) => {
-                if (!(await fileExists(filePath))) {
+                if (!(await (0, fs_1.fileExists)(filePath))) {
                     throw new Error(`File not found: ${path_1.default.basename(filePath)}`);
                 }
                 const bytes = await promises_1.default.readFile(filePath);
@@ -87,7 +82,7 @@ class PdfService {
      */
     static splitPDF(filePath, mode, rangesInput, outputDir) {
         return withTimeout((async () => {
-            if (!(await fileExists(filePath))) {
+            if (!(await (0, fs_1.fileExists)(filePath))) {
                 throw new Error('File not found');
             }
             const fileBytes = await promises_1.default.readFile(filePath);
@@ -157,7 +152,7 @@ class PdfService {
      */
     static compressPDF(filePath, level, outputFilePath) {
         return withTimeout((async () => {
-            if (!(await fileExists(filePath))) {
+            if (!(await (0, fs_1.fileExists)(filePath))) {
                 throw new Error('File not found');
             }
             const [fileBytes, stats] = await Promise.all([
@@ -174,12 +169,35 @@ class PdfService {
             doc.setKeywords([]);
             doc.setProducer('');
             doc.setCreator('');
-            // Suppress unused-variable warning — level is intentionally kept for
-            // future Ghostscript integration where it controls compression aggressiveness.
-            void level;
-            const compressedBytes = await doc.save({ useObjectStreams: true });
-            await promises_1.default.writeFile(outputFilePath, compressedBytes);
-            const compressedSize = compressedBytes.length; // Avoid extra stat call
+            // Ghostscript compression levels mapping
+            const gsLevels = {
+                basic: '/printer', // ~300 dpi
+                medium: '/ebook', // ~150 dpi
+                strong: '/screen' // ~72 dpi
+            };
+            const gsSetting = gsLevels[level] || '/ebook';
+            try {
+                // Attempt Ghostscript compression (Unix/Linux typically uses 'gs', Windows 'gswin64c' or 'gswin32c')
+                // We will try 'gs' first, and catch if it fails.
+                const gsCommand = process.platform === 'win32' ? 'gswin64c' : 'gs';
+                await execFileAsync(gsCommand, [
+                    '-sDEVICE=pdfwrite',
+                    '-dCompatibilityLevel=1.4',
+                    `-dPDFSETTINGS=${gsSetting}`,
+                    '-dNOPAUSE',
+                    '-dQUIET',
+                    '-dBATCH',
+                    `-sOutputFile=${outputFilePath}`,
+                    filePath
+                ]);
+            }
+            catch (gsError) {
+                console.warn('[Compress] Ghostscript failed or not installed, falling back to pdf-lib.', gsError.message);
+                // Fallback to pdf-lib if gs is not available
+                const compressedBytes = await doc.save({ useObjectStreams: true });
+                await promises_1.default.writeFile(outputFilePath, compressedBytes);
+            }
+            const compressedSize = (await promises_1.default.stat(outputFilePath)).size;
             return { originalSize, compressedSize };
         })());
     }
@@ -188,7 +206,7 @@ class PdfService {
      */
     static rotatePDF(filePath, rotations, outputFilePath) {
         return withTimeout((async () => {
-            if (!(await fileExists(filePath))) {
+            if (!(await (0, fs_1.fileExists)(filePath))) {
                 throw new Error('File not found');
             }
             const fileBytes = await promises_1.default.readFile(filePath);
