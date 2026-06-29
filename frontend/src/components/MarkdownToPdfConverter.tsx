@@ -241,7 +241,7 @@ export default function MarkdownToPdfConverter() {
       setProgress(70);
       setCurrentTask('Generating PDF pages...');
 
-      const pdfBlob: Blob = await (html2pdf() as any).from(previewRef.current, 'element').set(opt as any).output('blob');
+      const pdfBlob: Blob = await (html2pdf() as any).from(previewRef.current.outerHTML, 'string').set(opt as any).output('blob');
       const downloadUrl = URL.createObjectURL(pdfBlob);
       const outputFilename = `${(file?.name || 'document').replace(/\.[^/.]+$/, '')}.pdf`;
 
