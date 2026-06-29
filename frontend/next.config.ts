@@ -15,6 +15,21 @@ const nextConfig: NextConfig = {
     root: appDir,
   },
 
+  // Caching headers for heavy static resources
+  async headers() {
+    return [
+      {
+        source: '/pdf.worker.min.mjs',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable',
+          },
+        ],
+      },
+    ];
+  },
+
   // Optimize package imports — tree-shake heavy icon and animation libraries
   // so only the icons/exports actually used are bundled
   experimental: {

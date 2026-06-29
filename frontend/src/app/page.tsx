@@ -17,10 +17,12 @@ import CategoryExplorer from '@/components/home/CategoryExplorer';
 import PopularTools from '@/components/home/PopularTools';
 import HowItWorks from '@/components/home/HowItWorks';
 import Features from '@/components/home/Features';
-import SupportedFormats from '@/components/home/SupportedFormats';
-import SecurityPrivacy from '@/components/home/SecurityPrivacy';
-import Faq from '@/components/home/Faq';
-import FinalCta from '@/components/home/FinalCta';
+
+// Lazy load below-the-fold components with SSR enabled for SEO
+const SupportedFormats = dynamic(() => import('@/components/home/SupportedFormats'), { ssr: true });
+const SecurityPrivacy = dynamic(() => import('@/components/home/SecurityPrivacy'), { ssr: true });
+const Faq = dynamic(() => import('@/components/home/Faq'), { ssr: true });
+const FinalCta = dynamic(() => import('@/components/home/FinalCta'), { ssr: true });
 
 
 
