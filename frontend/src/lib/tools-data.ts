@@ -145,6 +145,19 @@ const pdfTools: Tool[] = [
     color: 'from-purple-500 to-violet-600',
     glow: 'rgba(139,92,246,0.15)',
   },
+  // Edit
+  {
+    name: 'Edit PDF',
+    description: 'Click and edit any text directly inside your PDF document',
+    path: '/edit-pdf',
+    category: 'pdf',
+    group: 'Edit',
+    icon: 'Pencil',
+    badge: 'New',
+    isLive: true,
+    color: 'from-emerald-500 to-teal-600',
+    glow: 'rgba(16,185,129,0.15)',
+  },
   // Organize
   {
     name: 'Merge PDF',
