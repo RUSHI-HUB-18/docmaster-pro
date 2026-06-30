@@ -219,29 +219,79 @@ export default function MarkdownToPdfConverter() {
     setCurrentTask('Preparing document layout...');
 
     try {
-      const html2pdf = (await import('html2pdf.js')).default;
+      // Dynamically import both libraries
+      const [html2canvasModule, jsPDFModule] = await Promise.all([
+        import('html2canvas'),
+        import('jspdf'),
+      ]);
+      const html2canvas = html2canvasModule.default;
+      const { jsPDF } = jsPDFModule;
 
-      setProgress(40);
-      setCurrentTask('Applying theme styling...');
+      setProgress(30);
+      setCurrentTask('Rendering document to high-res canvas...');
 
-      const opt = {
-        margin: [0.5, 0.6, 0.5, 0.6],
-        filename: `${(file?.name || 'document').replace(/\.[^/.]+$/, '')}.pdf`,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: {
-          scale: 3,            // Higher scale = sharper fonts & emoji
-          useCORS: true,
-          logging: false,
-          letterRendering: true,
-          allowTaint: false,
-        },
-        jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' as const },
-      };
+      // Create an offscreen container with the styled content
+      // This avoids any React DOM cloning issues
+      const offscreen = document.createElement('div');
+      offscreen.style.position = 'absolute';
+      offscreen.style.left = '-9999px';
+      offscreen.style.top = '0';
+      offscreen.style.width = '794px'; // A4 width at 96 DPI
+      offscreen.style.background = '#ffffff';
+      offscreen.innerHTML = `
+        <style>${getThemeCSS(theme)}</style>
+        <div class="markdown-preview-container">
+          ${renderedHtml}
+        </div>
+      `;
+      document.body.appendChild(offscreen);
 
-      setProgress(70);
-      setCurrentTask('Generating PDF pages...');
+      // Wait a tick for fonts to apply
+      await new Promise(resolve => setTimeout(resolve, 300));
 
-      const pdfBlob: Blob = await (html2pdf() as any).from(previewRef.current.outerHTML, 'string').set(opt as any).output('blob');
+      setProgress(50);
+      setCurrentTask('Capturing styled pages...');
+
+      const canvas = await html2canvas(offscreen, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        allowTaint: false,
+        backgroundColor: '#ffffff',
+      });
+
+      // Clean up offscreen element
+      document.body.removeChild(offscreen);
+
+      setProgress(75);
+      setCurrentTask('Compiling PDF pages...');
+
+      // Create PDF from canvas
+      const imgWidth = 210; // A4 width in mm
+      const pageHeight = 297; // A4 height in mm
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      const pdf = new jsPDF('p', 'mm', 'a4');
+
+      let heightLeft = imgHeight;
+      let position = 0;
+      const imgData = canvas.toDataURL('image/jpeg', 0.95);
+
+      // First page
+      pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+
+      // Add more pages if content overflows
+      while (heightLeft > 0) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+      }
+
+      setProgress(90);
+      setCurrentTask('Generating download file...');
+
+      const pdfBlob = pdf.output('blob');
       const downloadUrl = URL.createObjectURL(pdfBlob);
       const outputFilename = `${(file?.name || 'document').replace(/\.[^/.]+$/, '')}.pdf`;
 
