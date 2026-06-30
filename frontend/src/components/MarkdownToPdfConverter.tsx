@@ -219,14 +219,18 @@ export default function MarkdownToPdfConverter() {
     setCurrentTask('Preparing document layout...');
 
     try {
-      // Dynamically import jsPDF (html2canvas is loaded by jsPDF internally)
-      const jsPDFModule = await import('jspdf');
+      // Dynamically import both libraries
+      const [html2canvasModule, jsPDFModule] = await Promise.all([
+        import('html2canvas'),
+        import('jspdf'),
+      ]);
+      const html2canvas = html2canvasModule.default;
       const { jsPDF } = jsPDFModule;
 
       setProgress(20);
       setCurrentTask('Setting up document...');
 
-      // PDF-specific CSS to prevent code block overflow and ensure proper page breaks
+      // PDF-specific CSS to prevent code block overflow
       const pdfOverrideCSS = `
         .markdown-preview-container pre {
           white-space: pre-wrap !important;
@@ -254,13 +258,20 @@ export default function MarkdownToPdfConverter() {
       `;
 
       // Create an offscreen container with the styled content
-      // This avoids any React DOM cloning issues
       const offscreen = document.createElement('div');
       offscreen.style.position = 'absolute';
-      offscreen.style.left = '-9999px';
+      offscreen.style.left = '0';
       offscreen.style.top = '0';
-      offscreen.style.width = '794px'; // A4 width at 96 DPI
+      offscreen.style.zIndex = '-9999';
+      // Use opacity 0 instead of display none or visibility hidden so it still paints for canvas
+      offscreen.style.opacity = '0';
+      offscreen.style.pointerEvents = 'none';
+      // Use a fixed width that maps to A4 proportions
+      // At scale=2, 794px container → 1588px canvas, which maps to 210mm A4 width
+      offscreen.style.width = '794px';
       offscreen.style.background = '#ffffff';
+      offscreen.style.padding = '40px';
+      offscreen.style.boxSizing = 'border-box';
       offscreen.innerHTML = `
         <style>${getThemeCSS(theme)}</style>
         <style>${pdfOverrideCSS}</style>
@@ -273,41 +284,73 @@ export default function MarkdownToPdfConverter() {
       // Wait for fonts to load and apply
       await new Promise(resolve => setTimeout(resolve, 500));
 
-      setProgress(40);
-      setCurrentTask('Rendering document pages...');
+      setProgress(35);
+      setCurrentTask('Rendering document to canvas...');
 
-      // Use jsPDF's built-in html() method which handles multi-page
-      // pagination correctly — it won't cut through text lines
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const pageWidth = pdf.internal.pageSize.getWidth();
-      const pageHeight = pdf.internal.pageSize.getHeight();
-      const margin = 15; // mm on each side
-
-      await new Promise<void>((resolve, reject) => {
-        pdf.html(offscreen, {
-          callback: function () {
-            resolve();
-          },
-          x: margin,
-          y: margin,
-          width: pageWidth - margin * 2, // content width in mm
-          windowWidth: 794, // match the offscreen container width
-          autoPaging: 'text',
-          margin: [margin, margin, margin, margin],
-          html2canvas: {
-            scale: 2,
-            useCORS: true,
-            logging: false,
-            allowTaint: false,
-            backgroundColor: '#ffffff',
-          },
-        });
+      // Render the entire content into one tall canvas
+      const fullCanvas = await html2canvas(offscreen, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        allowTaint: false,
+        backgroundColor: '#ffffff',
+        width: offscreen.scrollWidth,
+        height: offscreen.scrollHeight,
+        windowWidth: offscreen.scrollWidth,
+        windowHeight: offscreen.scrollHeight,
+        scrollY: -window.scrollY // Fixes blank top when scrolled down
       });
 
-      // Clean up offscreen element
+      // Clean up offscreen element immediately
       document.body.removeChild(offscreen);
 
-      setProgress(85);
+      setProgress(60);
+      setCurrentTask('Slicing into pages...');
+
+      // Calculate page dimensions in canvas pixels
+      // A4 ratio: 210mm x 297mm
+      const canvasWidth = fullCanvas.width;
+      const pageHeightPx = Math.floor(canvasWidth * (297 / 210)); // A4 height in canvas px
+      const totalPages = Math.ceil(fullCanvas.height / pageHeightPx);
+
+      const pdf = new jsPDF('p', 'mm', 'a4');
+
+      for (let page = 0; page < totalPages; page++) {
+        if (page > 0) pdf.addPage();
+
+        // Calculate the slice coordinates
+        const srcY = page * pageHeightPx;
+        const srcH = Math.min(pageHeightPx, fullCanvas.height - srcY);
+
+        // Create a page-sized canvas for this slice
+        const pageCanvas = document.createElement('canvas');
+        pageCanvas.width = canvasWidth;
+        pageCanvas.height = pageHeightPx; // always full A4 page height
+        const ctx = pageCanvas.getContext('2d')!;
+
+        // Fill with white background first
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
+
+        // Draw the corresponding slice from the full canvas
+        ctx.drawImage(
+          fullCanvas,
+          0, srcY,               // source x, y
+          canvasWidth, srcH,     // source width, height
+          0, 0,                  // destination x, y
+          canvasWidth, srcH      // destination width, height
+        );
+
+        // Convert this page canvas to JPEG and add to PDF
+        const pageImgData = pageCanvas.toDataURL('image/jpeg', 0.95);
+        pdf.addImage(pageImgData, 'JPEG', 0, 0, 210, 297);
+
+        // Update progress
+        setProgress(60 + Math.round(((page + 1) / totalPages) * 30));
+        setCurrentTask(`Processing page ${page + 1} of ${totalPages}...`);
+      }
+
+      setProgress(95);
       setCurrentTask('Generating download file...');
 
       const pdfBlob = pdf.output('blob');
